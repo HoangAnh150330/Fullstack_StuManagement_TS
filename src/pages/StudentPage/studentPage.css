@@ -1,0 +1,16 @@
+.student-page-wrapper {
+  padding: 32px;
+  background-color: #f7f9fc;
+  min-height: 100vh;
+}
+
+.student-title {
+  font-size: 28px;
+  font-weight: 600;
+  margin-bottom: 0;
+  color: #2b4eff;
+}
+
+.student-header {
+  margin-bottom: 16px;
+}
