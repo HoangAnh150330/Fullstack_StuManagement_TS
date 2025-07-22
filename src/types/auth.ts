@@ -1,8 +1,15 @@
 export interface LoginPayLoad {
-  email:string;
-  password:string;
+  email: string;
+  password: string;
 }
 
-export interface RegisterPayLoad extends LoginPayLoad{
-  confirmPassword:string;
+export interface RegisterPayLoad {
+  fullName: string;
+  email: string;
+  password: string;
+}
+
+export interface VerifyOTPPayload {
+  email: string;
+  otp: string;
 }
