@@ -1,5 +1,5 @@
 export interface SubjectData {
-  id: number;
+  _id: string;
   name: string;
   code: string;
   credit: number;

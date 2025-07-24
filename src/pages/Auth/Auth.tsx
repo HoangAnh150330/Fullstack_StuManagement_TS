@@ -5,8 +5,12 @@ import {
   loginAPI,
 } from "../../services/auth_api";
 import "./auth.css";
-
+import { useDispatch } from "react-redux";
+import { setAuth } from "../../redux/auth-slice";
+import { useNavigate } from "react-router-dom";
 export default function Auth() {
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
   const [isLogin, setIsLogin] = useState(true);
   const [step, setStep] = useState<"form" | "otp">("form");
   const [form, setForm] = useState({
@@ -56,18 +60,41 @@ export default function Auth() {
       setLoading(false);
     }
   };
+const handleLogin = async () => {
+  try {
+    setLoading(true);
 
-  const handleLogin = async () => {
-    try {
-      setLoading(true);
-      await loginAPI({ email: form.email, password: form.password });
-      setMessage("Đăng nhập thành công!");
-    } catch (err: any) {
-      setMessage(err.response?.data?.message || "Đăng nhập thất bại.");
-    } finally {
-      setLoading(false);
+    const response = await loginAPI({
+      email: form.email,
+      password: form.password,
+    });
+
+    const { token, user } = response;
+
+    if (!token || !user) {
+      setMessage("Không nhận được token hoặc thông tin người dùng. Đăng nhập thất bại.");
+      return;
     }
-  };
+
+    // Dispatch vào Redux
+    dispatch(setAuth({ token, user }));
+
+    // Hiển thị thông báo và chuyển trang
+    setMessage("Đăng nhập thành công!");
+    console.log("Login response:", response);
+    if(user.role ==="admin"){
+      navigate('/admin');}
+    else{
+      navigate('/');
+    }
+    
+  } catch (err: any) {
+    setMessage(err.response?.data?.message || "Đăng nhập thất bại.");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
 return (
   <div className="auth-container">

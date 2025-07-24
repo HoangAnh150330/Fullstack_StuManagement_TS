@@ -1,5 +1,5 @@
 export interface classData {
-  id: number;
+  _id: string;
   name: string;
   course: string;
   teacher: string;

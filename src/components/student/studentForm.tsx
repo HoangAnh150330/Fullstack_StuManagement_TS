@@ -20,12 +20,11 @@ const StudentForm: React.FC<StudentFormProps> = ({
 }) => {
   const [form] = Form.useForm();
 
-  // Gán giá trị mặc định khi sửa
   useEffect(() => {
     if (initialData) {
       form.setFieldsValue({
         ...initialData,
-        birthday: initialData.birthday ? dayjs(initialData.birthday) : undefined,
+        dob: initialData.dob ? dayjs(initialData.dob) : undefined,
       });
     } else {
       form.resetFields();
@@ -35,8 +34,8 @@ const StudentForm: React.FC<StudentFormProps> = ({
   const handleFinish = (values: any) => {
     const formattedStudent: StudentData = {
       ...values,
-      birthday: values.birthday?.format("YYYY-MM-DD"),
-      id: initialData?.id ?? crypto.randomUUID(), // Nếu thêm mới thì tạo id ngẫu nhiên
+      dob: values.dob?.format("YYYY-MM-DD"),
+      id: initialData?.id ?? crypto.randomUUID(),
     };
     onSubmit(formattedStudent);
     onClose();
@@ -52,20 +51,36 @@ const StudentForm: React.FC<StudentFormProps> = ({
       cancelText="Hủy"
     >
       <Form form={form} layout="vertical" onFinish={handleFinish}>
-        <Form.Item name="name" label="Họ tên" rules={[{ required: true, message: "Nhập tên học viên" }]}>
-          <Input placeholder="Nguyễn Văn A" />
+        <Form.Item name="name" label="Họ tên" rules={[{ required: true }]}>
+          <Input />
         </Form.Item>
 
-        <Form.Item name="email" label="Email" rules={[{ required: true, type: "email", message: "Email không hợp lệ" }]}>
-          <Input placeholder="abc@email.com" />
+        <Form.Item
+          name="email"
+          label="Email"
+          rules={[{ required: true, type: "email" }]}
+        >
+          <Input />
         </Form.Item>
 
-        <Form.Item name="phone" label="Số điện thoại" rules={[{ required: true, message: "Nhập số điện thoại" }]}>
-          <Input placeholder="0123456789" />
+        <Form.Item name="phone" label="Số điện thoại" rules={[{ required: true }]}>
+          <Input />
         </Form.Item>
 
-        <Form.Item name="birthday" label="Ngày sinh">
+        <Form.Item name="dob" label="Ngày sinh">
           <DatePicker format="DD/MM/YYYY" style={{ width: "100%" }} />
+        </Form.Item>
+
+        <Form.Item name="gender" label="Giới tính">
+          <Select placeholder="Chọn giới tính">
+            <Option value="male">Nam</Option>
+            <Option value="female">Nữ</Option>
+            <Option value="other">Khác</Option>
+          </Select>
+        </Form.Item>
+
+        <Form.Item name="province" label="Tỉnh / Thành phố">
+          <Input placeholder="VD: Hồ Chí Minh" />
         </Form.Item>
 
         <Form.Item name="classId" label="Lớp">
@@ -73,7 +88,6 @@ const StudentForm: React.FC<StudentFormProps> = ({
             <Option value="A1">A1</Option>
             <Option value="B1">B1</Option>
             <Option value="C1">C1</Option>
-            {/* Bạn có thể lấy danh sách lớp từ API sau này */}
           </Select>
         </Form.Item>
       </Form>

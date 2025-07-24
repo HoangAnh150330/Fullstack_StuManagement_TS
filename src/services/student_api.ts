@@ -1,27 +1,37 @@
+import axios from "axios";
 import type { StudentData } from "../types/student";
-import { v4 as uuidv4 } from "uuid";
 
-// Giả lập danh sách học viên (dùng tạm trong frontend)
-let students: StudentData[] = [];
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 export const studentAPI = {
+  getUserProfile: async (id: string, token: string) => {
+  const res = await axios.get(`${API_URL}/api/auth/user/${id}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    });
+    return res.data;
+  },
+
   getAll: async (): Promise<StudentData[]> => {
-    return Promise.resolve(students);
+    const res = await axios.get(`${API_URL}/api/auth/getall-student`);
+    return res.data;
   },
 
-  create: async (data: Omit<StudentData, "id">): Promise<StudentData> => {
-    const newStudent = { ...data, id: uuidv4() };
-    students.push(newStudent);
-    return Promise.resolve(newStudent);
+  update: async (id: string, data: Partial<StudentData>, token: string): Promise<StudentData> => {
+    const res = await axios.put(`${API_URL}/api/auth/update-student/${id}`, data, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return res.data.student;
   },
 
-  update: async (id: string, data: StudentData): Promise<StudentData> => {
-    students = students.map((s) => (s.id === id ? { ...data, id } : s));
-    return Promise.resolve({ ...data, id });
-  },
-
-  delete: async (id: string): Promise<void> => {
-    students = students.filter((s) => s.id !== id);
-    return Promise.resolve();
+  delete: async (id: string, token: string): Promise<void> => {
+    await axios.delete(`${API_URL}/api/auth/delete-student/${id}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
   },
 };

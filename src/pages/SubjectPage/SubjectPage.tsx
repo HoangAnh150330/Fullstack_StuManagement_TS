@@ -1,13 +1,74 @@
-import React, { useState } from "react";
-import { Button, Input, Table, Space } from "antd";
+import React, { useEffect, useState } from "react";
+import { Button, Input, Table, Space, Row, Col, Modal, message } from "antd";
 import { PlusOutlined, SearchOutlined } from "@ant-design/icons";
 import type { SubjectData } from "../../types/subject";
-
-const initialSubjects: SubjectData[] = [];
+import { subjectAPI } from "../../services/subject_api";
+import SubjectForm from "../../components/Subject/SubjectForm"; 
+import './subjectPage.css';
 
 const SubjectManagementPage: React.FC = () => {
-  const [data, setData] = useState<SubjectData[]>(initialSubjects);
+  const [data, setData] = useState<SubjectData[]>([]);
   const [search, setSearch] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedSubject, setSelectedSubject] = useState<SubjectData | null>(null);
+
+  // NEW: State cho modal xoá
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
+  const fetchSubjects = async () => {
+    try {
+      const res = await subjectAPI.getAll();
+      setData(res);
+    } catch (error) {
+      message.error("Không thể tải danh sách môn học");
+    }
+  };
+
+  useEffect(() => {
+    fetchSubjects();
+  }, []);
+
+  // ✅ Mở modal xác nhận xoá
+  const handleDelete = (id: string) => {
+    setDeleteId(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  // ✅ Gọi API xoá
+  const confirmDelete = async () => {
+    if (!deleteId) return;
+    try {
+      await subjectAPI.delete(deleteId);
+      message.success("Đã xóa môn học");
+      fetchSubjects();
+    } catch (err) {
+      message.error("Xóa thất bại");
+    } finally {
+      setIsDeleteModalOpen(false);
+      setDeleteId(null);
+    }
+  };
+
+  const handleSubmit = async (formData: Omit<SubjectData, "_id">) => {
+    try {
+      if (selectedSubject) {
+        await subjectAPI.update(selectedSubject._id, formData);
+        message.success("Cập nhật thành công!");
+      } else {
+        await subjectAPI.create(formData);
+        message.success("Thêm môn học thành công!");
+      }
+      setIsModalOpen(false);
+      fetchSubjects();
+    } catch {
+      message.error("Có lỗi xảy ra khi lưu");
+    }
+  };
+
+  const filteredData = data.filter((item) =>
+    item.name.toLowerCase().includes(search.toLowerCase())
+  );
 
   const columns = [
     { title: "Tên môn học", dataIndex: "name", key: "name" },
@@ -16,36 +77,79 @@ const SubjectManagementPage: React.FC = () => {
     {
       title: "Hành động",
       key: "action",
-      render: () => (
+      render: (_: any, record: SubjectData) => (
         <Space>
-          <a>Sửa</a>
-          <a>Xóa</a>
+          <Button type="link" onClick={() => {
+            setSelectedSubject(record);
+            setIsModalOpen(true);
+          }}>Sửa</Button>
+          <Button type="link" danger onClick={() => handleDelete(record._id)}>Xóa</Button>
         </Space>
       ),
     },
   ];
 
   return (
-    <div>
-      <h2>📘 Quản lý môn học</h2>
-      <Space style={{ marginBottom: 16 }}>
-        <Input
-          placeholder="Tìm môn học"
-          prefix={<SearchOutlined />}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <Button type="primary" icon={<PlusOutlined />}>
-          Thêm môn học
-        </Button>
-      </Space>
+    <div className="subject-page-wrapper">
+      <div className="subject-header">
+        <h1 className="subject-title">📘 Quản lý môn học</h1>
+        <Row justify="space-between" align="middle" style={{ marginTop: 16, marginBottom: 24 }}>
+          <Col>
+            <Input
+              placeholder="Tìm môn học"
+              prefix={<SearchOutlined />}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              allowClear
+              style={{ width: 300 }}
+            />
+          </Col>
+          <Col>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => {
+                setSelectedSubject(null);
+                setIsModalOpen(true);
+              }}
+            >
+              Thêm môn học
+            </Button>
+          </Col>
+        </Row>
+      </div>
+
       <Table
-        dataSource={data.filter((item) =>
-          item.name.toLowerCase().includes(search.toLowerCase())
-        )}
+        rowKey="_id"
+        dataSource={filteredData}
         columns={columns}
-        rowKey="id"
+        bordered
+        pagination={{ pageSize: 10 }}
       />
+
+      {/* Modal Form */}
+      <SubjectForm
+        open={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSubmit={handleSubmit}
+        subject={selectedSubject}
+      />
+
+      {/* Modal xác nhận xoá */}
+      <Modal
+        title="Xác nhận xoá"
+        open={isDeleteModalOpen}
+        onOk={confirmDelete}
+        onCancel={() => {
+          setIsDeleteModalOpen(false);
+          setDeleteId(null);
+        }}
+        okText="Xóa"
+        okType="danger"
+        cancelText="Hủy"
+      >
+        <p>Bạn có chắc chắn muốn xoá môn học này không?</p>
+      </Modal>
     </div>
   );
 };

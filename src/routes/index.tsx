@@ -5,11 +5,21 @@ import StudentPage from "../pages/StudentPage/StudentPage";
 import ClassPage from "../pages/ClassPage/ClassPage";
 import SubjectPage from "../pages/SubjectPage/SubjectPage";
 import AuthPage from "../pages/Auth/Auth"; 
+import ProfilePage from "../pages/ProfilePage/ProfilePage";
+import HomePage from "../pages/HomePage/HomePage";
 
 export const router = createBrowserRouter([
   {
-    path: "/",
+    path:"/",
+    element:<HomePage/>
+  },
+  {
+    path: "/login-register",
     element: <AuthPage />, 
+  },
+  {
+    path: "/profile",
+    element: <ProfilePage />, 
   },
   {
     path: "/admin",
