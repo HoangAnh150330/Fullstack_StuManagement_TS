@@ -1,0 +1,157 @@
+import { useState } from "react";
+import { registerAPI, verifyOTPAPI } from "../../services/auth_api";
+import { Input, Button } from "antd";
+import type { ErrorResponse } from "../../types/error";
+
+// Định nghĩa kiểu dữ liệu chung
+interface FormState {
+  email: string;
+  password: string;
+  confirmPassword?: string;
+  otp?: string;
+}
+
+interface RegisterProps {
+  setMessage: (msg: string) => void;
+  setIsLogin: (value: boolean) => void;
+  setStep: (step: "form" | "otp") => void;
+  step: "form" | "otp";
+  form: FormState;
+  setForm: (form: FormState) => void;
+}
+
+export default function Register({ setMessage, setIsLogin, setStep, step, form, setForm }: RegisterProps) {
+  const [loading, setLoading] = useState(false);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleRegister = async () => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(form.email)) {
+      setMessage("Định dạng email không hợp lệ.");
+      return;
+    }
+
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$/;
+    if (!passwordRegex.test(form.password)) {
+      setMessage("Mật khẩu phải có ít nhất 6 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt.");
+      return;
+    }
+
+    if (form.confirmPassword && form.password !== form.confirmPassword) {
+      setMessage("Mật khẩu xác nhận không khớp.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await registerAPI({
+        email: form.email,
+        password: form.password,
+      });
+      setStep("otp");
+      setMessage("OTP đã gửi về email của bạn. Vui lòng xác minh.");
+    } catch (err) {
+      let errorMessage = "Đăng ký thất bại.";
+      if (err instanceof Error) {
+        errorMessage = err.message || errorMessage;
+      } else if (err && typeof err === 'object' && 'response' in err) {
+        const apiError = err as ErrorResponse;
+        errorMessage = apiError.response?.data?.message || errorMessage;
+      }
+      setMessage(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOTP = async () => {
+    if (!form.otp) {
+      setMessage("Vui lòng nhập mã OTP.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await verifyOTPAPI({
+        email: form.email,
+        otp: form.otp,
+      });
+      setIsLogin(true);
+      setStep("form");
+      setMessage("Xác minh OTP thành công. Tài khoản đã được tạo. Hãy đăng nhập.");
+      setForm({ ...form, otp: "" });
+    } catch (err) {
+      let errorMessage = "OTP không hợp lệ.";
+      if (err instanceof Error) {
+        errorMessage = err.message || errorMessage;
+      } else if (err && typeof err === 'object' && 'response' in err) {
+        const apiError = err as ErrorResponse;
+        errorMessage = apiError.response?.data?.message || errorMessage;
+      }
+      setMessage(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="auth-form">
+      {step === "form" ? (
+        <>
+          <Input
+            type="email"
+            name="email"
+            placeholder="Email"
+            value={form.email}
+            onChange={handleChange}
+            style={{ marginBottom: 12 }}
+          />
+          <Input.Password
+            name="password"
+            placeholder="Mật khẩu"
+            value={form.password}
+            onChange={handleChange}
+            style={{ marginBottom: 12 }}
+          />
+          <Input.Password
+            name="confirmPassword"
+            placeholder="Xác nhận mật khẩu"
+            value={form.confirmPassword || ""}
+            onChange={handleChange}
+            style={{ marginBottom: 12 }}
+          />
+          <Button
+            type="primary"
+            block
+            onClick={handleRegister}
+            loading={loading}
+          >
+            Đăng ký
+          </Button>
+        </>
+      ) : (
+        <>
+          <Input
+            type="text"
+            name="otp"
+            placeholder="Nhập mã OTP"
+            value={form.otp || ""}
+            onChange={handleChange}
+            style={{ marginBottom: 12 }}
+          />
+          <Button
+            type="primary"
+            block
+            onClick={handleVerifyOTP}
+            loading={loading}
+          >
+            Xác minh OTP
+          </Button>
+        </>
+      )}
+    </div>
+  );
+}

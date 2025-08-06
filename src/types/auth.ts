@@ -4,7 +4,7 @@ export interface LoginPayLoad {
 }
 
 export interface RegisterPayLoad {
-  fullName: string;
+  
   email: string;
   password: string;
 }

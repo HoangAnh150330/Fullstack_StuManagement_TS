@@ -84,3 +84,19 @@
   color: green;
   text-align: center;
 }
+ .auth-form .ant-input,
+.auth-form .ant-input-password,
+.auth-form .ant-btn {
+  width: 100%;
+  font-size: 16px;
+  height: 44px;
+  border-radius: 8px;
+}
+
+.auth-form .ant-btn {
+  font-weight: 600;
+}
+
+.auth-form .ant-input-password-icon {
+  color: #aaa;
+}

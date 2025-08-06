@@ -14,8 +14,18 @@ interface AuthState {
 
 const initialState: AuthState = {
   token: localStorage.getItem("token") || null,
-  user: localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")!) : null,
+  user: null,
 };
+
+try {
+  const storedUser = localStorage.getItem("user");
+  if (storedUser) {
+    initialState.user = JSON.parse(storedUser);
+  }
+} catch (e) {
+  console.error("Failed to parse user from localStorage:", e);
+  localStorage.removeItem("user"); // Xóa dữ liệu lỗi
+}
 
 const authSlice = createSlice({
   name: "auth",

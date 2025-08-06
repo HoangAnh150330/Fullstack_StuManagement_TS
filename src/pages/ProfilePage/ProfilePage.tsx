@@ -1,10 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Input, DatePicker, Select, Button, message } from 'antd';
 import type { SelectProps } from 'antd';
-import moment from 'moment';
+import moment, { type Moment } from 'moment';
 import { studentAPI } from '../../services/student_api';
 import type { ProfileData } from '../../types/profile';
 import './Profile.css';
+
+// Định nghĩa kiểu cho dữ liệu phản hồi từ API
+interface APIResponse {
+  name?: string;
+  email?: string;
+  phone?: string;
+  gender?: string;
+  dob?: string;
+  province?: string;
+}
 
 const { Option } = Select;
 
@@ -20,18 +30,25 @@ const ProfilePage: React.FC = () => {
   const [provinces, setProvinces] = useState<SelectProps['options']>([]);
   const [loading, setLoading] = useState<boolean>(false);
 
-  const userLocal = JSON.parse(localStorage.getItem('user') || '{}');
-  const token = localStorage.getItem('token');
+  // Lấy thông tin user từ localStorage
+  const userLocal = JSON.parse(localStorage.getItem('user') || '{}') as { _id: string } | null;
+  const token = localStorage.getItem('token') || '';
 
   useEffect(() => {
     fetchProvinces();
-    fetchUserProfile();
-  }, []);
+    if (userLocal?._id && token) {
+      fetchUserProfile();
+    }
+  }, [userLocal?._id, token]);
 
   const fetchUserProfile = async () => {
     try {
-      if (!userLocal._id || !token) return;
-      const data = await studentAPI.getUserProfile(userLocal._id, token);
+      if (!userLocal?._id || !token) {
+        message.error("Không tìm thấy thông tin người dùng.");
+        return;
+      }
+      setLoading(true);
+      const data: APIResponse = await studentAPI.getUserProfile(userLocal._id, token);
 
       setFormData({
         name: data.name || '',
@@ -42,21 +59,29 @@ const ProfilePage: React.FC = () => {
         province: data.province || '',
       });
     } catch (error) {
-      message.error("Không thể tải thông tin người dùng.");
+      const errorMessage = error instanceof Error ? error.message : "Không thể tải thông tin người dùng.";
+      message.error(errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
 
   const fetchProvinces = async () => {
     try {
+      setLoading(true);
       const res = await fetch('https://provinces.open-api.vn/api/?depth=1');
+      if (!res.ok) throw new Error("Không thể kết nối đến API tỉnh.");
       const data = await res.json();
-      const options = data.map((prov: any) => ({
+      const options = data.map((prov: { name: string }) => ({
         label: prov.name,
         value: prov.name,
       }));
       setProvinces(options);
     } catch (error) {
-      message.error("Không tải được danh sách tỉnh.");
+      const errorMessage = error instanceof Error ? error.message : "Không tải được danh sách tỉnh.";
+      message.error(errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -66,17 +91,24 @@ const ProfilePage: React.FC = () => {
 
   const handleSave = async () => {
     try {
-      const updatedStudent = await studentAPI.update(userLocal._id, formData, token as string);
+      setLoading(true);
+      if (!userLocal?._id || !token) {
+        message.error("Không tìm thấy thông tin người dùng để cập nhật.");
+        return;
+      }
+      const updatedStudent = await studentAPI.update(userLocal._id, formData, token);
       console.log("Cập nhật thành công:", updatedStudent);
       message.success("Đã lưu thông tin!");
+      // Cập nhật localStorage nếu cần
+      const updatedUser = { ...userLocal, ...formData };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
     } catch (error) {
-      console.error("Lỗi khi cập nhật:", error);
-      message.error("Không thể lưu. Kiểm tra lại thông tin.");
+      const errorMessage = error instanceof Error ? error.message : "Không thể lưu. Kiểm tra lại thông tin.";
+      message.error(errorMessage);
     } finally {
-    setLoading(false);
-   }
+      setLoading(false);
+    }
   };
-
 
   return (
     <div className="profile-container">
@@ -115,8 +147,8 @@ const ProfilePage: React.FC = () => {
           <label>Ngày sinh</label>
           <DatePicker
             style={{ width: '100%' }}
-            value={formData.dob ? moment(formData.dob) : null}
-            onChange={(date, dateString) => handleChange('dob', dateString)}
+            value={formData.dob ? moment(formData.dob, 'YYYY-MM-DD') : null}
+            onChange={(date: Moment | null, dateString: string) => handleChange('dob', dateString)}
             placeholder="Chọn ngày sinh"
             format="YYYY-MM-DD"
           />
@@ -129,6 +161,7 @@ const ProfilePage: React.FC = () => {
             options={provinces}
             value={formData.province}
             onChange={(val) => handleChange('province', val)}
+            placeholder="Chọn tỉnh/thành phố"
           />
         </div>
 
