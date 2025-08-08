@@ -1,13 +1,14 @@
-import React, { useEffect } from "react";
-import { Modal, Form, Input, Select } from "antd";
+import React, { useEffect, useState } from "react";
+import { Modal, Form, Input, Select, InputNumber, Button, Space } from "antd";
 import type { classData } from "../../types/class";
+import { subjectAPI } from "../../services/subject_api";
 
 const { Option } = Select;
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: Omit<classData, "id">) => void;
+  onSubmit: (data: Omit<classData, "_id">) => void;
   classItem?: classData | null;
 }
 
@@ -18,14 +19,44 @@ const teacherOptions = [
   "Jony Đặng",
 ];
 
-const courseOptions = ["Cơ bản", "Trung cấp"];
+const dayOfWeekOptions = [
+  "Thứ 2",
+  "Thứ 3",
+  "Thứ 4",
+  "Thứ 5",
+  "Thứ 6",
+  "Thứ 7",
+  "Chủ nhật",
+];
+
+const timeSlotOptions = [
+  "07:00-09:00",
+  "09:00-11:00",
+  "13:00-15:00",
+  "15:00-17:00",
+  "18:00-20:00",
+];
 
 const ClassForm: React.FC<Props> = ({ open, onClose, onSubmit, classItem }) => {
   const [form] = Form.useForm();
+  const [subjects, setSubjects] = useState<string[]>([]);
 
   useEffect(() => {
+    const fetchSubjects = async () => {
+      try {
+        const res = await subjectAPI.getAll();
+        setSubjects(res.map((subject) => subject.name));
+      } catch (err) {
+        console.error("Lỗi khi lấy danh sách môn học:", err);
+      }
+    };
+    fetchSubjects();
+
     if (classItem) {
-      form.setFieldsValue(classItem);
+      form.setFieldsValue({
+        ...classItem,
+        timeSlots: classItem.timeSlots || [],
+      });
     } else {
       form.resetFields();
     }
@@ -34,9 +65,13 @@ const ClassForm: React.FC<Props> = ({ open, onClose, onSubmit, classItem }) => {
   const handleOk = async () => {
     try {
       const values = await form.validateFields();
-      onSubmit(values);
+      const submitData = {
+        ...values,
+        timeSlots: values.timeSlots || [],
+      };
+      onSubmit(submitData);
     } catch (err) {
-      // Xử lý lỗi validate nếu cần
+      console.log(err);
     }
   };
 
@@ -59,14 +94,14 @@ const ClassForm: React.FC<Props> = ({ open, onClose, onSubmit, classItem }) => {
         </Form.Item>
 
         <Form.Item
-          name="course"
-          label="Khóa học"
-          rules={[{ required: true, message: "Vui lòng chọn khóa học" }]}
+          name="subject"
+          label="Môn học"
+          rules={[{ required: true, message: "Vui lòng chọn môn học" }]}
         >
-          <Select placeholder="Chọn khóa học">
-            {courseOptions.map((course) => (
-              <Option key={course} value={course}>
-                {course}
+          <Select placeholder="Chọn môn học">
+            {subjects.map((subject) => (
+              <Option key={subject} value={subject}>
+                {subject}
               </Option>
             ))}
           </Select>
@@ -84,6 +119,78 @@ const ClassForm: React.FC<Props> = ({ open, onClose, onSubmit, classItem }) => {
               </Option>
             ))}
           </Select>
+        </Form.Item>
+
+        <Form.Item
+          name="maxStudents"
+          label="Sĩ số tối đa"
+          rules={[{ required: true, message: "Vui lòng nhập sĩ số tối đa" }]}
+        >
+          <InputNumber min={1} style={{ width: "100%" }} />
+        </Form.Item>
+
+        <Form.Item
+          label="Khung giờ"
+          required
+          tooltip="Chọn nhiều ngày và khung giờ"
+        >
+          <Form.List name="timeSlots">
+            {(fields, { add, remove }) => (
+              <>
+                {fields.map((field) => (
+                  <Space
+                    key={field.key}
+                    align="baseline"
+                    style={{ display: "flex", marginBottom: 8, width: "100%" }}
+                  >
+                    <Form.Item
+                      {...field}
+                      name={[field.name, "day"]}
+                      rules={[{ required: true, message: "Vui lòng chọn ngày" }]}
+                      style={{ flex: 1 }}
+                    >
+                      <Select placeholder="Chọn ngày" style={{ width: "100%" }}>
+                        {dayOfWeekOptions.map((day) => (
+                          <Option key={day} value={day}>
+                            {day}
+                          </Option>
+                        ))}
+                      </Select>
+                    </Form.Item>
+                    <Form.Item
+                      {...field}
+                      name={[field.name, "slot"]}
+                      rules={[
+                        { required: true, message: "Vui lòng chọn khung giờ" },
+                      ]}
+                      style={{ flex: 1 }}
+                    >
+                      <Select
+                        placeholder="Chọn khung giờ"
+                        style={{ width: "100%" }}
+                      >
+                        {timeSlotOptions.map((slot) => (
+                          <Option key={slot} value={slot}>
+                            {slot}
+                          </Option>
+                        ))}
+                      </Select>
+                    </Form.Item>
+                    <Button
+                      type="link"
+                      danger
+                      onClick={() => remove(field.name)}
+                    >
+                      Xóa
+                    </Button>
+                  </Space>
+                ))}
+                <Button type="dashed" onClick={() => add()} block>
+                  Thêm khung giờ
+                </Button>
+              </>
+            )}
+          </Form.List>
         </Form.Item>
       </Form>
     </Modal>

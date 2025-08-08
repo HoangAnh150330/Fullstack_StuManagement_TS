@@ -34,4 +34,14 @@ export const studentAPI = {
       },
     });
   },
+
+  uploadAvatar: async (id: string, formData: FormData, token: string): Promise<unknown> => {
+    const res = await axios.post(`${API_URL}/api/auth/upload-avatar/${id}`, formData, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return res.data;
+  },
 };

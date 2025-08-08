@@ -4,6 +4,7 @@ import {
   BookOutlined,
   AppstoreOutlined,
   HomeFilled,
+  ScheduleOutlined
 } from "@ant-design/icons";
 import { useNavigate, useLocation } from "react-router-dom";
 import'./sidebar.css';
@@ -45,6 +46,7 @@ const Sidebar = () => {
           { key: "students", icon: <UserOutlined />, label: "Quản lý học viên" },
           { key: "classes", icon: <BookOutlined />, label: "Quản lý lớp học" },
           { key: "subjects", icon: <BookOutlined />, label: "Quản lý môn học" },
+          { key: "teaching-schedule", icon: <ScheduleOutlined />, label: "Lịch giảng dạy" },
         ]}
       />
     </Sider>

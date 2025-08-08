@@ -7,6 +7,7 @@ import SubjectPage from "../pages/SubjectPage/SubjectPage";
 import AuthPage from "../pages/Auth/Auth"; 
 import ProfilePage from "../pages/ProfilePage/ProfilePage";
 import HomePage from "../pages/HomePage/HomePage";
+import TeachingSchedulePage from "../pages/TeachingSchedulePage/TeachingSchedulePage";
 
 export const router = createBrowserRouter([
   {
@@ -29,6 +30,7 @@ export const router = createBrowserRouter([
       { path: "students", element: <StudentPage /> },
       { path: "classes", element: <ClassPage /> },
       { path: "subjects", element: <SubjectPage /> },
+       { path: "teaching-schedule", element: <TeachingSchedulePage /> },
     ],
   },
 ]);

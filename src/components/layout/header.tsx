@@ -18,7 +18,7 @@ const HeaderBar = () => {
       navigate("/profile");
     } else if (key === "logout") {
       dispatch(clearAuth());
-      navigate("/login");
+      navigate("/");
     }
   };
 

@@ -20,6 +20,7 @@ const SubjectManagementPage: React.FC = () => {
     try {
       const res = await subjectAPI.getAll();
       setData(res);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       message.error("Không thể tải danh sách môn học");
     }
@@ -42,6 +43,7 @@ const SubjectManagementPage: React.FC = () => {
       await subjectAPI.delete(deleteId);
       message.success("Đã xóa môn học");
       fetchSubjects();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       message.error("Xóa thất bại");
     } finally {
@@ -70,14 +72,23 @@ const SubjectManagementPage: React.FC = () => {
     item.name.toLowerCase().includes(search.toLowerCase())
   );
 
+  const formatDate = (date: Date | string | null | undefined): string => {
+    if (!date) return "";
+    const d = new Date(date);
+    return !isNaN(d.getTime()) ? d.toLocaleDateString("vi-VN") : "";
+  };
+
   const columns = [
     { title: "Tên môn học", dataIndex: "name", key: "name" },
     { title: "Mã môn", dataIndex: "code", key: "code" },
     { title: "Số tín chỉ", dataIndex: "credit", key: "credit" },
+    { title: "Mô tả ngắn", dataIndex: "description", key: "description" },
+    { title: "Ngày bắt đầu", dataIndex: "startDate", key: "startDate", render: (date: string | Date | null | undefined) => formatDate(date) },
+    { title: "Ngày kết thúc", dataIndex: "endDate", key: "endDate", render: (date: string | Date | null | undefined) => formatDate(date) },
     {
       title: "Hành động",
       key: "action",
-      render: (_: any, record: SubjectData) => (
+      render: (_: unknown, record: SubjectData) => (
         <Space>
           <Button type="link" onClick={() => {
             setSelectedSubject(record);

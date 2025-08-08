@@ -21,3 +21,4 @@ export const resendOTPAPI  = async (payload: { email:string}) => {
   const res = await axios.post(`${BASE_URL}/resend-otp`, payload);
   return res.data;
 };
+

@@ -1,0 +1,30 @@
+.teaching-schedule-wrapper {
+  padding: 20px;
+  background-color: #fdfdfd;
+}
+
+.schedule-title {
+  margin-bottom: 20px;
+  font-size: 24px;
+  font-weight: bold;
+  color: #333;
+}
+
+.rbc-calendar {
+  font-family: 'Segoe UI', sans-serif;
+  border-radius: 6px;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.rbc-time-content {
+  background-color: #fcfcfc;
+}
+
+.rbc-event {
+  background-color: #1677ff;
+  color: white;
+  border: none;
+  padding: 2px 6px;
+  border-radius: 4px;
+}

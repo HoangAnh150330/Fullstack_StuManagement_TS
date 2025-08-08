@@ -3,4 +3,7 @@ export interface SubjectData {
   name: string;
   code: string;
   credit: number;
+  description?: string;
+  startDate: Date;
+  endDate: Date;
 }
