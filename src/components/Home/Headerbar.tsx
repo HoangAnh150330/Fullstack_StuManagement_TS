@@ -1,27 +1,32 @@
 import React from "react";
-import { Avatar, Dropdown, Menu, message } from "antd";
+import { Avatar, Dropdown, message, type MenuProps } from "antd";
 import { UserOutlined, LogoutOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import type { RootState } from "../../redux/store";
-import { clearAuth } from "../../redux/auth-slice";
-import "./HeaderBar.css";
+import { logout } from "../../redux/auth-slice";
 
 const HeaderBar: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const token = useSelector((state: RootState) => state.auth.token);
-  const isLoggedIn = !!token;
 
-  const handleMenuClick = ({ key }: { key: string }) => {
+  const user = useSelector((state: RootState) => state.auth.user);
+  const isLoggedIn = !!user;
+
+  const onClick: MenuProps["onClick"] = ({ key }) => {
     if (key === "profile") {
       navigate("/profile");
     } else if (key === "logout") {
-      dispatch(clearAuth()); 
+      dispatch(logout());
       message.success("Đăng xuất thành công");
       navigate("/login-register");
     }
   };
+
+  const items: MenuProps["items"] = [
+    { key: "profile", label: "Thông tin cá nhân", icon: <UserOutlined /> },
+    { key: "logout", label: "Đăng xuất", icon: <LogoutOutlined /> },
+  ];
 
   const handleAvatarClick = () => {
     if (!isLoggedIn) {
@@ -30,33 +35,23 @@ const HeaderBar: React.FC = () => {
     }
   };
 
-  const menu = (
-    <Menu onClick={handleMenuClick}>
-      <Menu.Item key="profile" icon={<UserOutlined />}>
-        Thông tin cá nhân
-      </Menu.Item>
-      <Menu.Item key="logout" icon={<LogoutOutlined />}>
-        Đăng xuất
-      </Menu.Item>
-    </Menu>
-  );
-
   return (
-    <div className="header-bar">
-      <div className="logo">Trung Tâm Eris</div>
+    <div className="h-16 bg-slate-800 text-white flex items-center justify-between px-6">
+      <div className="text-xl font-bold">Trung Tâm Eris</div>
+
       {isLoggedIn ? (
-        <Dropdown overlay={menu} placement="bottomRight" trigger={["click"]}>
+        <Dropdown menu={{ items, onClick }} placement="bottomRight" trigger={["click"]}>
           <Avatar
             size="large"
             icon={<UserOutlined />}
-            style={{ cursor: "pointer" }}
+            className="cursor-pointer transition hover:opacity-90"
           />
         </Dropdown>
       ) : (
         <Avatar
           size="large"
           icon={<UserOutlined />}
-          style={{ cursor: "pointer" }}
+          className="cursor-pointer transition hover:opacity-90"
           onClick={handleAvatarClick}
         />
       )}

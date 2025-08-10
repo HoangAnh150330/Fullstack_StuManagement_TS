@@ -7,18 +7,17 @@ const { Content } = Layout;
 
 const AdminLayout = () => {
   return (
-    <Layout style={{ minHeight: "100vh" }}>
+    <Layout className="min-h-screen">
       <Sidebar />
-      <Layout style={{ width: "100%" }}> 
+      <Layout className="w-full">
         <HeaderBar />
-        <Content style={{
-          margin: "16px",
-          padding: "24px",
-          background: "#fff",
-          minHeight: "calc(100vh - 64px - 32px)", 
-          width: "100%", 
-          boxSizing: "border-box"
-        }}>
+        <Content
+          className="
+            m-4 p-6 bg-white w-full
+            min-h-[calc(100vh-64px-32px)]
+            box-border
+          "
+        >
           <Outlet />
         </Content>
       </Layout>

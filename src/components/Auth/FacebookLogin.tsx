@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
-import { setAuth } from "../../redux/auth-slice";
+import { setUser } from "../../redux/auth-slice";
 import { useNavigate } from "react-router-dom";
 import { Button } from "antd";
 import axios from "axios";
@@ -13,7 +13,7 @@ interface FacebookUserResponse {
 
 declare global {
   interface Window {
-    FB: {
+    FB?: {
       init: (options: { appId: string; cookie: boolean; xfbml: boolean; version: string }) => void;
       login: (
         callback: (response: { authResponse: { accessToken: string; userID: string } | null; status: string }) => void,
@@ -25,7 +25,7 @@ declare global {
         callback: (response: T | null) => void
       ) => void;
     };
-    fbAsyncInit: () => void;
+    fbAsyncInit?: () => void;
   }
 }
 
@@ -39,7 +39,7 @@ interface FormState {
 interface FacebookLoginProps {
   setMessage: (msg: string) => void;
   form: { email: string };
-  setForm: (formUpdater: (prevForm: FormState) => FormState) => void;
+  setForm: (updater: (prev: FormState) => FormState) => void;
 }
 
 export default function FacebookLogin({ setMessage, setForm }: FacebookLoginProps) {
@@ -47,12 +47,13 @@ export default function FacebookLogin({ setMessage, setForm }: FacebookLoginProp
   const dispatch = useDispatch();
   const [loading, setLoading] = useState(false);
 
-  // Khởi tạo Facebook SDK
   useEffect(() => {
+    if (window.FB) return;
+
     window.fbAsyncInit = function () {
       try {
-        window.FB.init({
-          appId: "2176727902805288", 
+        window.FB?.init({
+          appId: "2176727902805288",
           cookie: true,
           xfbml: true,
           version: "v19.0",
@@ -62,16 +63,15 @@ export default function FacebookLogin({ setMessage, setForm }: FacebookLoginProp
       }
     };
 
-    (function (d, s, id) {
-      const js = d.createElement(s) as HTMLScriptElement;
-      const fjs = d.getElementsByTagName(s)[0];
-      if (d.getElementById(id)) return;
+    const id = "facebook-jssdk";
+    if (!document.getElementById(id)) {
+      const js = document.createElement("script");
       js.id = id;
       js.src = "https://connect.facebook.net/en_US/sdk.js";
       js.onload = () => console.log("Facebook SDK loaded successfully");
       js.onerror = () => console.error("Failed to load Facebook SDK");
-      fjs.parentNode?.insertBefore(js, fjs);
-    })(document, "script", "facebook-jssdk");
+      document.body.appendChild(js);
+    }
   }, []);
 
   const handleFacebookLogin = () => {
@@ -85,37 +85,35 @@ export default function FacebookLogin({ setMessage, setForm }: FacebookLoginProp
     window.FB.login(
       (response) => {
         if (response.authResponse) {
-          // Lấy thông tin user từ FB
-          window.FB.api<FacebookUserResponse>(
+          window.FB?.api<FacebookUserResponse>(
             "/me",
             { fields: "id,name,email" },
-            async (userResponse) => {
-              if (userResponse) {
-                try {
-                  // Gọi API backend để lưu hoặc tìm user
-                  const { data } = await axios.post("http://localhost:3000/api/auth/facebook-login", {
-                    facebookId: userResponse.id,
-                    email: userResponse.email || "",
-                    name: userResponse.name || ""
-                  });
+            async (fbUser) => {
+              try {
+                if (!fbUser) throw new Error("Không thể lấy thông tin người dùng Facebook.");
 
-                  // Lưu vào Redux + localStorage
-                  dispatch(setAuth({ token: data.token, user: data.user }));
-                  localStorage.setItem("token", data.token);
+                const { data } = await axios.post("http://localhost:3000/api/auth/facebook-login", {
+                  facebookId: fbUser.id,
+                  email: fbUser.email || "",
+                  name: fbUser.name || "",
+                });
 
-                  // Cập nhật form email nếu có
-                  setForm((prevForm) => ({ ...prevForm, email: data.user.email }));
+                const { token, user } = data as {
+                  token: string;
+                  user: { _id: string; email: string; role: "admin" | "teacher" | "student" };
+                };
 
-                  setMessage("Đăng nhập bằng Facebook thành công!");
-                  navigate("/");
-                } catch (error) {
-                  console.error("Lỗi khi lưu user vào DB:", error);
-                  setMessage("Không thể lưu thông tin vào hệ thống.");
-                }
-              } else {
-                setMessage("Không thể lấy thông tin người dùng từ Facebook.");
+                dispatch(setUser({ _id: user._id, email: user.email, role: user.role, token }));
+                setForm((prev) => ({ ...prev, email: user.email }));
+
+                setMessage("Đăng nhập bằng Facebook thành công!");
+                navigate(user.role === "admin" ? "/admin" : "/");
+              } catch (error) {
+                console.error("Lỗi khi xử lý đăng nhập Facebook:", error);
+                setMessage("Không thể đăng nhập bằng Facebook. Vui lòng thử lại.");
+              } finally {
+                setLoading(false);
               }
-              setLoading(false);
             }
           );
         } else {
@@ -133,7 +131,7 @@ export default function FacebookLogin({ setMessage, setForm }: FacebookLoginProp
       block
       onClick={handleFacebookLogin}
       loading={loading}
-      style={{ marginTop: 12 }}
+      className="mt-3"
     >
       Đăng nhập bằng Facebook
     </Button>

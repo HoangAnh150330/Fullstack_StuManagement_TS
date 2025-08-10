@@ -1,58 +1,43 @@
-import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
+import { createSlice,type PayloadAction } from "@reduxjs/toolkit";
 
-interface User {
+export type Role = "admin" | "teacher" | "student";
+export interface AuthUser {
   _id: string;
-  name: string;
   email: string;
-  role: string;
+  role: Role;
+  token: string; // JWT
 }
 
 interface AuthState {
-  token: string | null;
-  user: User | null;
+  user: AuthUser | null;
 }
 
 const initialState: AuthState = {
-  token: localStorage.getItem("token") || null,
   user: null,
 };
-
-try {
-  const storedUser = localStorage.getItem("user");
-  if (storedUser) {
-    initialState.user = JSON.parse(storedUser);
-  }
-} catch (e) {
-  console.error("Failed to parse user from localStorage:", e);
-  localStorage.removeItem("user"); // Xóa dữ liệu lỗi
-}
 
 const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {
-    setAuth: (
-      state,
-      action: PayloadAction<{
-        token: string;
-        user: User;
-      }>
-    ) => {
-      state.token = action.payload.token;
-      state.user = action.payload.user;
-
-      // Lưu vào localStorage
-      localStorage.setItem("token", action.payload.token);
-      localStorage.setItem("user", JSON.stringify(action.payload.user));
+    setUser(state, action: PayloadAction<AuthUser | null>) {
+      state.user = action.payload;
+      if (action.payload) {
+        localStorage.setItem("auth_user", JSON.stringify(action.payload));
+      } else {
+        localStorage.removeItem("auth_user");
+      }
     },
-    clearAuth: (state) => {
-      state.token = null;
+    loadUserFromStorage(state) {
+      const raw = localStorage.getItem("auth_user");
+      state.user = raw ? (JSON.parse(raw) as AuthUser) : null;
+    },
+    logout(state) {
       state.user = null;
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
+      localStorage.removeItem("auth_user");
     },
   },
 });
 
-export const { setAuth, clearAuth } = authSlice.actions;
+export const { setUser, loadUserFromStorage, logout } = authSlice.actions;
 export default authSlice.reducer;

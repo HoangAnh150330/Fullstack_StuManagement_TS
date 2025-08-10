@@ -1,20 +1,32 @@
 import React, { useEffect, useState } from "react";
-import {
-  Button,
-  Input,
-  Table,
-  Space,
-  Row,
-  Col,
-  Modal,
-} from "antd";
+import { Button, Input, Table, Space, Modal } from "antd";
 import { PlusOutlined, SearchOutlined } from "@ant-design/icons";
+import type { ColumnsType } from "antd/es/table";
 import type { classData } from "../../types/class";
 import ClassForm from "../../components/Class/ClassForm";
 import { classAPI } from "../../services/class_api";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import "./classPage.css";
+
+// ---- Utils: safe error extractor (no 'any')
+type MaybeErrorShape = {
+  response?: { data?: { message?: string } };
+  data?: { message?: string };
+  message?: unknown;
+};
+const getErrMsg = (e: unknown, fallback = "Có lỗi xảy ra") => {
+  if (typeof e === "string") return e;
+  if (e && typeof e === "object") {
+    const m = e as MaybeErrorShape;
+    return (
+      m.response?.data?.message ??
+      m.data?.message ??
+      (typeof m.message === "string" ? m.message : undefined) ??
+      fallback
+    );
+  }
+  return fallback;
+};
 
 const ClassManagementPage: React.FC = () => {
   const [data, setData] = useState<classData[]>([]);
@@ -22,21 +34,14 @@ const ClassManagementPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedClass, setSelectedClass] = useState<classData | null>(null);
 
-  // Modal xoá (manual confirm)
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-
-  const getErrMsg = (e: any, fallback = "Có lỗi xảy ra") =>
-    e?.response?.data?.message ||
-    e?.data?.message ||
-    e?.message ||
-    fallback;
 
   const fetchClasses = async () => {
     try {
       const res = await classAPI.getAll();
       setData(res);
-    } catch (e) {
+    } catch (e: unknown) {
       toast.error(getErrMsg(e, "Không thể tải danh sách lớp học"));
     }
   };
@@ -56,7 +61,7 @@ const ClassManagementPage: React.FC = () => {
       await classAPI.delete(deleteId);
       toast.success("Đã xóa lớp học");
       fetchClasses();
-    } catch (e) {
+    } catch (e: unknown) {
       toast.error(getErrMsg(e, "Xóa thất bại"));
     } finally {
       setDeleteId(null);
@@ -76,13 +81,17 @@ const ClassManagementPage: React.FC = () => {
       setIsModalOpen(false);
       setSelectedClass(null);
       fetchClasses();
-    } catch (e: any) {
-      // Bắt lỗi 409 (trùng lịch) -> show message chi tiết từ BE
-      if (e?.response?.status === 409) {
-        toast.error(getErrMsg(e, "Giáo viên bị trùng lịch"));
-      } else {
-        toast.error(getErrMsg(e, "Có lỗi xảy ra khi lưu"));
+    } catch (e: unknown) {
+      // ví dụ lỗi 409 từ BE
+      const msg = getErrMsg(e, "Có lỗi xảy ra khi lưu");
+      if (typeof e === "object" && e && "response" in e) {
+        const status = (e as { response?: { status?: number } }).response?.status;
+        if (status === 409) {
+          toast.error(getErrMsg(e, "Giáo viên bị trùng lịch"));
+          return;
+        }
       }
+      toast.error(msg);
     }
   };
 
@@ -90,7 +99,7 @@ const ClassManagementPage: React.FC = () => {
     item.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const columns = [
+  const columns: ColumnsType<classData> = [
     { title: "Tên lớp", dataIndex: "name", key: "name" },
     { title: "Môn học", dataIndex: "subject", key: "subject" },
     { title: "Giáo viên", dataIndex: "teacher", key: "teacher" },
@@ -98,8 +107,8 @@ const ClassManagementPage: React.FC = () => {
     {
       title: "Lịch học",
       key: "timeSlots",
-      render: (_: unknown, record: classData) => (
-        <div>
+      render: (_: unknown, record) => (
+        <div className="space-y-0.5">
           {record.timeSlots.map((ts, idx) => (
             <div key={idx}>
               {ts.day} - {ts.slot}
@@ -111,7 +120,7 @@ const ClassManagementPage: React.FC = () => {
     {
       title: "Hành động",
       key: "action",
-      render: (_: unknown, record: classData) => (
+      render: (_: unknown, record) => (
         <Space>
           <Button
             type="link"
@@ -131,33 +140,32 @@ const ClassManagementPage: React.FC = () => {
   ];
 
   return (
-    <div className="class-page-wrapper">
-      <div className="class-header">
-        <h1 className="class-title">🎓 Quản lý lớp học</h1>
-        <Row justify="space-between" align="middle" style={{ marginTop: 16, marginBottom: 24 }}>
-          <Col>
-            <Input
-              placeholder="Tìm lớp học"
-              prefix={<SearchOutlined />}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              allowClear
-              style={{ width: 300 }}
-            />
-          </Col>
-          <Col>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => {
-                setSelectedClass(null);
-                setIsModalOpen(true);
-              }}
-            >
-              Thêm lớp học
-            </Button>
-          </Col>
-        </Row>
+    <div className="p-8 bg-gradient-to-br from-purple-100 to-sky-100 min-h-screen border border-gray-300 rounded-xl shadow-md">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-indigo-600 flex items-center gap-2 m-0">
+          🎓 Quản lý lớp học
+        </h1>
+
+        <div className="mt-4 mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <Input
+            placeholder="Tìm lớp học"
+            prefix={<SearchOutlined />}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            allowClear
+            className="w-full sm:w-80"
+          />
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => {
+              setSelectedClass(null);
+              setIsModalOpen(true);
+            }}
+          >
+            Thêm lớp học
+          </Button>
+        </div>
       </div>
 
       <Table
@@ -166,6 +174,7 @@ const ClassManagementPage: React.FC = () => {
         columns={columns}
         bordered
         pagination={{ pageSize: 10 }}
+        className="bg-white"
       />
 
       <ClassForm
@@ -178,7 +187,6 @@ const ClassManagementPage: React.FC = () => {
         classItem={selectedClass}
       />
 
-      {/* Modal xác nhận xoá */}
       <Modal
         title="Xác nhận xoá"
         open={isDeleteModalOpen}
@@ -188,13 +196,12 @@ const ClassManagementPage: React.FC = () => {
           setDeleteId(null);
         }}
         okText="Xóa"
-        okType="danger" // antd v5 bỏ okType? giữ nếu bạn đang dùng v4
         cancelText="Hủy"
+        okButtonProps={{ danger: true }}
       >
         <p>Bạn có chắc chắn muốn xoá lớp học này không?</p>
       </Modal>
 
-      {/* Toastify */}
       <ToastContainer position="top-right" autoClose={2500} newestOnTop />
     </div>
   );

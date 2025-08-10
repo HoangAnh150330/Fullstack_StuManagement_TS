@@ -1,82 +1,48 @@
-import { Layout, Avatar, Space, Typography, Dropdown, Menu } from "antd";
+import React from "react";
+import { Layout, Avatar, Space, Typography, Dropdown, type MenuProps } from "antd";
 import { UserOutlined } from "@ant-design/icons";
 import { useSelector, useDispatch } from "react-redux";
 import type { RootState } from "../../redux/store";
 import { useNavigate } from "react-router-dom";
-import { clearAuth } from "../../redux/auth-slice";
+import { logout } from "../../redux/auth-slice";
 
 const { Header } = Layout;
 const { Text } = Typography;
 
-const HeaderBar = () => {
+const HeaderBar: React.FC = () => {
   const user = useSelector((state: RootState) => state.auth.user);
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  const handleMenuClick = ({ key }: { key: string }) => {
+  const onClick: MenuProps["onClick"] = ({ key }) => {
     if (key === "profile") {
       navigate("/profile");
     } else if (key === "logout") {
-      dispatch(clearAuth());
+      dispatch(logout());
       navigate("/");
     }
   };
 
-  const menu = (
-    <Menu
-      onClick={handleMenuClick}
-      items={[
-        {
-          label: "Thông tin cá nhân",
-          key: "profile",
-        },
-        {
-          type: "divider",
-        },
-        {
-          label: "Đăng xuất",
-          key: "logout",
-        },
-      ]}
-    />
-  );
+  const items: MenuProps["items"] = [
+    { label: "Thông tin cá nhân", key: "profile" },
+    { type: "divider" },
+    { label: "Đăng xuất", key: "logout" },
+  ];
 
   return (
-    <Header
-      style={{
-        background: "#f5f5f5",
-        padding: "0 24px",
-        display: "flex",
-        justifyContent: "flex-end",
-        alignItems: "center",
-        height: "64px",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-      }}
-    >
-      <Space size="middle">
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            textAlign: "right",
-          }}
-        >
-          <Text strong style={{ fontSize: 16 }}>
-            {user?.name || "User"}
-          </Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {user?.role || "No role"}
-          </Text>
+    <Header className="bg-gray-100 px-6 flex justify-end items-center h-16 shadow-md">
+      <Space size="middle" className="items-center">
+        <div className="flex flex-col text-right">
+          {/* slice bạn không có name -> dùng email */}
+          <Text strong className="text-base">{user?.email ?? "User"}</Text>
+          <Text type="secondary" className="text-xs">{user?.role ?? "No role"}</Text>
         </div>
-        <Dropdown overlay={menu} placement="bottomRight" trigger={["click"]}>
+
+        <Dropdown menu={{ items, onClick }} placement="bottomRight" trigger={["click"]}>
           <Avatar
             icon={<UserOutlined />}
             size="large"
-            style={{
-              backgroundColor: "#1890ff",
-              cursor: "pointer",
-              boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
-            }}
+            className="bg-blue-500 cursor-pointer shadow"
           />
         </Dropdown>
       </Space>

@@ -3,7 +3,6 @@ import { registerAPI, verifyOTPAPI } from "../../services/auth_api";
 import { Input, Button } from "antd";
 import type { ErrorResponse } from "../../types/error";
 
-// Định nghĩa kiểu dữ liệu chung
 interface FormState {
   email: string;
   password: string;
@@ -20,7 +19,20 @@ interface RegisterProps {
   setForm: (form: FormState) => void;
 }
 
-export default function Register({ setMessage, setIsLogin, setStep, step, form, setForm }: RegisterProps) {
+const RequiredLabel: React.FC<{ text: string }> = ({ text }) => (
+  <span>
+    {text} <span className="text-red-500 font-bold">*</span>
+  </span>
+);
+
+export default function Register({
+  setMessage,
+  setIsLogin,
+  setStep,
+  step,
+  form,
+  setForm,
+}: RegisterProps) {
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -28,19 +40,27 @@ export default function Register({ setMessage, setIsLogin, setStep, step, form, 
   };
 
   const handleRegister = async () => {
+    if (!form.email.trim() || !form.password.trim() || !form.confirmPassword?.trim()) {
+      setMessage("Vui lòng nhập đầy đủ thông tin.");
+      return;
+    }
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(form.email)) {
       setMessage("Định dạng email không hợp lệ.");
       return;
     }
 
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$/;
+    const passwordRegex =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$/;
     if (!passwordRegex.test(form.password)) {
-      setMessage("Mật khẩu phải có ít nhất 6 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt.");
+      setMessage(
+        "Mật khẩu phải có ít nhất 6 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt."
+      );
       return;
     }
 
-    if (form.confirmPassword && form.password !== form.confirmPassword) {
+    if (form.password !== form.confirmPassword) {
       setMessage("Mật khẩu xác nhận không khớp.");
       return;
     }
@@ -57,9 +77,10 @@ export default function Register({ setMessage, setIsLogin, setStep, step, form, 
       let errorMessage = "Đăng ký thất bại.";
       if (err instanceof Error) {
         errorMessage = err.message || errorMessage;
-      } else if (err && typeof err === 'object' && 'response' in err) {
+      } else if (err && typeof err === "object" && "response" in err) {
         const apiError = err as ErrorResponse;
-        errorMessage = apiError.response?.data?.message || errorMessage;
+        errorMessage =
+          apiError.response?.data?.message || errorMessage;
       }
       setMessage(errorMessage);
     } finally {
@@ -81,15 +102,18 @@ export default function Register({ setMessage, setIsLogin, setStep, step, form, 
       });
       setIsLogin(true);
       setStep("form");
-      setMessage("Xác minh OTP thành công. Tài khoản đã được tạo. Hãy đăng nhập.");
+      setMessage(
+        "Xác minh OTP thành công. Tài khoản đã được tạo. Hãy đăng nhập."
+      );
       setForm({ ...form, otp: "" });
     } catch (err) {
       let errorMessage = "OTP không hợp lệ.";
       if (err instanceof Error) {
         errorMessage = err.message || errorMessage;
-      } else if (err && typeof err === 'object' && 'response' in err) {
+      } else if (err && typeof err === "object" && "response" in err) {
         const apiError = err as ErrorResponse;
-        errorMessage = apiError.response?.data?.message || errorMessage;
+        errorMessage =
+          apiError.response?.data?.message || errorMessage;
       }
       setMessage(errorMessage);
     } finally {
@@ -101,28 +125,37 @@ export default function Register({ setMessage, setIsLogin, setStep, step, form, 
     <div className="auth-form">
       {step === "form" ? (
         <>
+          <label className="block mb-1"><RequiredLabel text="Email" /></label>
           <Input
             type="email"
             name="email"
             placeholder="Email"
             value={form.email}
             onChange={handleChange}
-            style={{ marginBottom: 12 }}
+            required
+            className="mb-3"
           />
+
+          <label className="block mb-1"><RequiredLabel text="Mật khẩu" /></label>
           <Input.Password
             name="password"
             placeholder="Mật khẩu"
             value={form.password}
             onChange={handleChange}
-            style={{ marginBottom: 12 }}
+            required
+            className="mb-3"
           />
+
+          <label className="block mb-1"><RequiredLabel text="Xác nhận mật khẩu" /></label>
           <Input.Password
             name="confirmPassword"
             placeholder="Xác nhận mật khẩu"
             value={form.confirmPassword || ""}
             onChange={handleChange}
-            style={{ marginBottom: 12 }}
+            required
+            className="mb-3"
           />
+
           <Button
             type="primary"
             block
@@ -134,13 +167,15 @@ export default function Register({ setMessage, setIsLogin, setStep, step, form, 
         </>
       ) : (
         <>
+          <label className="block mb-1"><RequiredLabel text="Mã OTP" /></label>
           <Input
             type="text"
             name="otp"
             placeholder="Nhập mã OTP"
             value={form.otp || ""}
             onChange={handleChange}
-            style={{ marginBottom: 12 }}
+            required
+            className="mb-3"
           />
           <Button
             type="primary"

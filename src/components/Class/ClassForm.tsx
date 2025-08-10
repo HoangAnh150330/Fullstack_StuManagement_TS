@@ -12,30 +12,11 @@ interface Props {
   classItem?: classData | null;
 }
 
-const teacherOptions = [
-  "Nguyễn Nhật Anh",
-  "Huỳnh Hoa",
-  "Hoàng Vương",
-  "Jony Đặng",
-];
+const teacherOptions = ["Nguyễn Nhật Anh", "Huỳnh Hoa", "Hoàng Vương", "Jony Đặng"];
 
-const dayOfWeekOptions = [
-  "Thứ 2",
-  "Thứ 3",
-  "Thứ 4",
-  "Thứ 5",
-  "Thứ 6",
-  "Thứ 7",
-  "Chủ nhật",
-];
+const dayOfWeekOptions = ["Thứ 2","Thứ 3","Thứ 4","Thứ 5","Thứ 6","Thứ 7","Chủ nhật"];
 
-const timeSlotOptions = [
-  "07:00-09:00",
-  "09:00-11:00",
-  "13:00-15:00",
-  "15:00-17:00",
-  "18:00-20:00",
-];
+const timeSlotOptions = ["07:00-09:00","09:00-11:00","13:00-15:00","15:00-17:00","18:00-20:00"];
 
 const ClassForm: React.FC<Props> = ({ open, onClose, onSubmit, classItem }) => {
   const [form] = Form.useForm();
@@ -53,10 +34,7 @@ const ClassForm: React.FC<Props> = ({ open, onClose, onSubmit, classItem }) => {
     fetchSubjects();
 
     if (classItem) {
-      form.setFieldsValue({
-        ...classItem,
-        timeSlots: classItem.timeSlots || [],
-      });
+      form.setFieldsValue({ ...classItem, timeSlots: classItem.timeSlots || [] });
     } else {
       form.resetFields();
     }
@@ -65,10 +43,7 @@ const ClassForm: React.FC<Props> = ({ open, onClose, onSubmit, classItem }) => {
   const handleOk = async () => {
     try {
       const values = await form.validateFields();
-      const submitData = {
-        ...values,
-        timeSlots: values.timeSlots || [],
-      };
+      const submitData = { ...values, timeSlots: values.timeSlots || [] };
       onSubmit(submitData);
     } catch (err) {
       console.log(err);
@@ -98,7 +73,7 @@ const ClassForm: React.FC<Props> = ({ open, onClose, onSubmit, classItem }) => {
           label="Môn học"
           rules={[{ required: true, message: "Vui lòng chọn môn học" }]}
         >
-          <Select placeholder="Chọn môn học">
+          <Select placeholder="Chọn môn học" className="w-full">
             {subjects.map((subject) => (
               <Option key={subject} value={subject}>
                 {subject}
@@ -112,7 +87,7 @@ const ClassForm: React.FC<Props> = ({ open, onClose, onSubmit, classItem }) => {
           label="Giáo viên"
           rules={[{ required: true, message: "Vui lòng chọn giáo viên" }]}
         >
-          <Select placeholder="Chọn giáo viên">
+          <Select placeholder="Chọn giáo viên" className="w-full">
             {teacherOptions.map((teacher) => (
               <Option key={teacher} value={teacher}>
                 {teacher}
@@ -126,30 +101,22 @@ const ClassForm: React.FC<Props> = ({ open, onClose, onSubmit, classItem }) => {
           label="Sĩ số tối đa"
           rules={[{ required: true, message: "Vui lòng nhập sĩ số tối đa" }]}
         >
-          <InputNumber min={1} style={{ width: "100%" }} />
+          <InputNumber min={1} className="w-full" />
         </Form.Item>
 
-        <Form.Item
-          label="Khung giờ"
-          required
-          tooltip="Chọn nhiều ngày và khung giờ"
-        >
+        <Form.Item label="Khung giờ" required tooltip="Chọn nhiều ngày và khung giờ">
           <Form.List name="timeSlots">
             {(fields, { add, remove }) => (
               <>
                 {fields.map((field) => (
-                  <Space
-                    key={field.key}
-                    align="baseline"
-                    style={{ display: "flex", marginBottom: 8, width: "100%" }}
-                  >
+                  <Space key={field.key} align="baseline" className="w-full mb-2">
                     <Form.Item
                       {...field}
                       name={[field.name, "day"]}
                       rules={[{ required: true, message: "Vui lòng chọn ngày" }]}
-                      style={{ flex: 1 }}
+                      className="flex-1"
                     >
-                      <Select placeholder="Chọn ngày" style={{ width: "100%" }}>
+                      <Select placeholder="Chọn ngày" className="w-full">
                         {dayOfWeekOptions.map((day) => (
                           <Option key={day} value={day}>
                             {day}
@@ -157,18 +124,14 @@ const ClassForm: React.FC<Props> = ({ open, onClose, onSubmit, classItem }) => {
                         ))}
                       </Select>
                     </Form.Item>
+
                     <Form.Item
                       {...field}
                       name={[field.name, "slot"]}
-                      rules={[
-                        { required: true, message: "Vui lòng chọn khung giờ" },
-                      ]}
-                      style={{ flex: 1 }}
+                      rules={[{ required: true, message: "Vui lòng chọn khung giờ" }]}
+                      className="flex-1"
                     >
-                      <Select
-                        placeholder="Chọn khung giờ"
-                        style={{ width: "100%" }}
-                      >
+                      <Select placeholder="Chọn khung giờ" className="w-full">
                         {timeSlotOptions.map((slot) => (
                           <Option key={slot} value={slot}>
                             {slot}
@@ -176,11 +139,8 @@ const ClassForm: React.FC<Props> = ({ open, onClose, onSubmit, classItem }) => {
                         ))}
                       </Select>
                     </Form.Item>
-                    <Button
-                      type="link"
-                      danger
-                      onClick={() => remove(field.name)}
-                    >
+
+                    <Button type="link" danger onClick={() => remove(field.name)}>
                       Xóa
                     </Button>
                   </Space>

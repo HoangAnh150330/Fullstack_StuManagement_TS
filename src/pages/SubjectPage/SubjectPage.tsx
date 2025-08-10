@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { Button, Input, Table, Space, Row, Col, Modal, message } from "antd";
+import { Button, Input, Table, Space, Modal, message } from "antd";
+import type { ColumnsType } from "antd/es/table";
 import { PlusOutlined, SearchOutlined } from "@ant-design/icons";
 import type { SubjectData } from "../../types/subject";
 import { subjectAPI } from "../../services/subject_api";
-import SubjectForm from "../../components/Subject/SubjectForm"; 
-import './subjectPage.css';
+import SubjectForm from "../../components/Subject/SubjectForm";
 
 const SubjectManagementPage: React.FC = () => {
   const [data, setData] = useState<SubjectData[]>([]);
@@ -12,7 +12,6 @@ const SubjectManagementPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState<SubjectData | null>(null);
 
-  // NEW: State cho modal xoá
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
@@ -20,8 +19,7 @@ const SubjectManagementPage: React.FC = () => {
     try {
       const res = await subjectAPI.getAll();
       setData(res);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (error) {
+    } catch {
       message.error("Không thể tải danh sách môn học");
     }
   };
@@ -30,21 +28,18 @@ const SubjectManagementPage: React.FC = () => {
     fetchSubjects();
   }, []);
 
-  // ✅ Mở modal xác nhận xoá
   const handleDelete = (id: string) => {
     setDeleteId(id);
     setIsDeleteModalOpen(true);
   };
 
-  // ✅ Gọi API xoá
   const confirmDelete = async () => {
     if (!deleteId) return;
     try {
       await subjectAPI.delete(deleteId);
       message.success("Đã xóa môn học");
       fetchSubjects();
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (err) {
+    } catch {
       message.error("Xóa thất bại");
     } finally {
       setIsDeleteModalOpen(false);
@@ -62,6 +57,7 @@ const SubjectManagementPage: React.FC = () => {
         message.success("Thêm môn học thành công!");
       }
       setIsModalOpen(false);
+      setSelectedSubject(null);
       fetchSubjects();
     } catch {
       message.error("Có lỗi xảy ra khi lưu");
@@ -78,64 +74,81 @@ const SubjectManagementPage: React.FC = () => {
     return !isNaN(d.getTime()) ? d.toLocaleDateString("vi-VN") : "";
   };
 
-  const columns = [
+  const columns: ColumnsType<SubjectData> = [
     { title: "Tên môn học", dataIndex: "name", key: "name" },
     { title: "Mã môn", dataIndex: "code", key: "code" },
     { title: "Số tín chỉ", dataIndex: "credit", key: "credit" },
     { title: "Mô tả ngắn", dataIndex: "description", key: "description" },
-    { title: "Ngày bắt đầu", dataIndex: "startDate", key: "startDate", render: (date: string | Date | null | undefined) => formatDate(date) },
-    { title: "Ngày kết thúc", dataIndex: "endDate", key: "endDate", render: (date: string | Date | null | undefined) => formatDate(date) },
+    {
+      title: "Ngày bắt đầu",
+      dataIndex: "startDate",
+      key: "startDate",
+      render: (date?: string | Date | null) => formatDate(date),
+    },
+    {
+      title: "Ngày kết thúc",
+      dataIndex: "endDate",
+      key: "endDate",
+      render: (date?: string | Date | null) => formatDate(date),
+    },
     {
       title: "Hành động",
       key: "action",
-      render: (_: unknown, record: SubjectData) => (
+      render: (_: unknown, record) => (
         <Space>
-          <Button type="link" onClick={() => {
-            setSelectedSubject(record);
-            setIsModalOpen(true);
-          }}>Sửa</Button>
-          <Button type="link" danger onClick={() => handleDelete(record._id)}>Xóa</Button>
+          <Button
+            type="link"
+            onClick={() => {
+              setSelectedSubject(record);
+              setIsModalOpen(true);
+            }}
+          >
+            Sửa
+          </Button>
+          <Button type="link" danger onClick={() => handleDelete(record._id)}>
+            Xóa
+          </Button>
         </Space>
       ),
     },
   ];
 
   return (
-    <div className="subject-page-wrapper">
-      <div className="subject-header">
-        <h1 className="subject-title">📘 Quản lý môn học</h1>
-        <Row justify="space-between" align="middle" style={{ marginTop: 16, marginBottom: 24 }}>
-          <Col>
-            <Input
-              placeholder="Tìm môn học"
-              prefix={<SearchOutlined />}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              allowClear
-              style={{ width: 300 }}
-            />
-          </Col>
-          <Col>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => {
-                setSelectedSubject(null);
-                setIsModalOpen(true);
-              }}
-            >
-              Thêm môn học
-            </Button>
-          </Col>
-        </Row>
+    <div className="p-8 bg-gradient-to-br from-pink-100 to-sky-100 min-h-screen border border-gray-300 rounded-xl shadow-md">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-indigo-600 flex items-center gap-2 m-0">
+          📘 Quản lý môn học
+        </h1>
+
+        <div className="mt-4 mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <Input
+            placeholder="Tìm môn học"
+            prefix={<SearchOutlined />}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            allowClear
+            className="w-full sm:w-80"
+          />
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => {
+              setSelectedSubject(null);
+              setIsModalOpen(true);
+            }}
+          >
+            Thêm môn học
+          </Button>
+        </div>
       </div>
 
-      <Table
+      <Table<SubjectData>
         rowKey="_id"
         dataSource={filteredData}
         columns={columns}
         bordered
         pagination={{ pageSize: 10 }}
+        className="bg-white"
       />
 
       {/* Modal Form */}
@@ -156,8 +169,8 @@ const SubjectManagementPage: React.FC = () => {
           setDeleteId(null);
         }}
         okText="Xóa"
-        okType="danger"
         cancelText="Hủy"
+        okButtonProps={{ danger: true }}
       >
         <p>Bạn có chắc chắn muốn xoá môn học này không?</p>
       </Modal>
