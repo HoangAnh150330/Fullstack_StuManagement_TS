@@ -2,9 +2,9 @@ import React, { useEffect, useState } from "react";
 import { Button, Input, Table, Space, Modal } from "antd";
 import { PlusOutlined, SearchOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
-import type { classData } from "../../types/class";
-import ClassForm from "../../components/Class/ClassForm";
-import { classAPI } from "../../services/class_api";
+import type { classData } from "../../../types/class";
+import ClassForm from "../../../components/Class/ClassForm";
+import { classAPI } from "../../../services/class_api";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 

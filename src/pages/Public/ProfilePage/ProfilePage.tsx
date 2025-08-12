@@ -5,17 +5,16 @@ import dayjs, { Dayjs } from "dayjs";
 import { UploadOutlined } from "@ant-design/icons";
 import { toast } from "react-toastify";
 import { useSelector } from "react-redux";
-import type { RootState } from "../../redux/store";
-import { studentAPI } from "../../services/student_api";
-import type { ProfileData } from "../../types/profile";
+import { useNavigate } from "react-router-dom";
+import type { RootState } from "../../../redux/store";
+import { studentAPI } from "../../../services/student_api";
+import type { ProfileData } from "../../../types/profile";
 
 interface APIResponse {
   name?: string; email?: string; phone?: string; gender?: string;
   dob?: string; province?: string; avatar?: string;
   message?: string; data?: { avatar?: string }; error?: string;
 }
-
-const { Option } = Select;
 
 const RequiredLabel: React.FC<{ text: string }> = ({ text }) => (
   <span>
@@ -24,6 +23,8 @@ const RequiredLabel: React.FC<{ text: string }> = ({ text }) => (
 );
 
 const ProfilePage: React.FC = () => {
+  const navigate = useNavigate();
+
   // ✅ Lấy user từ Redux (đã có _id, email, role, token)
   const authUser = useSelector((s: RootState) => s.auth.user);
   const userId = authUser?._id;
@@ -44,7 +45,13 @@ const ProfilePage: React.FC = () => {
 
   useEffect(() => {
     if (userId && token) fetchUserProfile();
-  }, [userId, token]); // ✅ khi Redux có user/token thì gọi API
+  }, [userId, token]);
+
+  useEffect(() => {
+    return () => {
+      if (avatarPreview?.startsWith("blob:")) URL.revokeObjectURL(avatarPreview);
+    };
+  }, [avatarPreview]);
 
   const fetchUserProfile = async () => {
     try {
@@ -129,7 +136,7 @@ const ProfilePage: React.FC = () => {
       }
 
       toast.success("Đã lưu thông tin!");
-      await fetchUserProfile(); // refresh dữ liệu
+      await fetchUserProfile();
     } catch {
       toast.error("Không thể lưu thông tin.");
     } finally {
@@ -146,8 +153,8 @@ const ProfilePage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 to-violet-100 p-5">
-      <div className="flex gap-8 items-start w-full max-w-5xl flex-wrap">
+    <div className="">
+      <div className="flex gap-8 items-start w-full flex-wrap">
         {/* Avatar */}
         <div className="flex flex-col items-center gap-4 w-64 p-5 bg-white rounded-2xl shadow-xl">
           <div className="w-44 h-44 rounded-full overflow-hidden border-4 border-gray-200 bg-gray-100 flex items-center justify-center">
@@ -172,7 +179,12 @@ const ProfilePage: React.FC = () => {
 
         {/* Form */}
         <form className="flex-1 bg-white p-10 rounded-2xl shadow-xl min-w-[300px]">
-          <h2 className="mb-6 text-2xl font-semibold text-center text-slate-800">Thông tin cá nhân</h2>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-2xl font-semibold text-slate-800">Thông tin cá nhân</h2>
+            <Button onClick={() => navigate("/profile/change-password")} type="default">
+              Đổi mật khẩu
+            </Button>
+          </div>
 
           <div className="mb-5">
             <label className="block mb-1 text-sm font-medium text-slate-700">
@@ -199,10 +211,14 @@ const ProfilePage: React.FC = () => {
             <label className="block mb-1 text-sm font-medium text-slate-700">
               <RequiredLabel text="Giới tính" />
             </label>
-            <Select size="large" value={formData.gender} onChange={(val) => handleChange("gender", val)} placeholder="Chọn giới tính" className="w-full">
-              <Option value="male">Nam</Option>
-              <Option value="female">Nữ</Option>
-            </Select>
+            <Select
+              size="large"
+              value={formData.gender}
+              onChange={(val) => handleChange("gender", val)}
+              placeholder="Chọn giới tính"
+              className="w-full"
+              options={[{ label: "Nam", value: "male" }, { label: "Nữ", value: "female" }]}
+            />
             {errors.gender && <div className="text-red-500 text-xs mt-1">{errors.gender}</div>}
           </div>
 

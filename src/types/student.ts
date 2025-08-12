@@ -6,3 +6,7 @@ export interface StudentData {
   birthday?: string;
   classId?: string;
 }
+export interface ChangePasswordBody {
+  currentPassword: string;
+  newPassword: string;
+}

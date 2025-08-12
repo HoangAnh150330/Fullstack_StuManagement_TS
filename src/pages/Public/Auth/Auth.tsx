@@ -1,7 +1,7 @@
 import { useState } from "react";
-import Register from "../../components/Auth/Register";
-import Login from "../../components/Auth/Login";
-import FacebookLogin from "../../components/Auth/FacebookLogin";
+import Register from "../../../components/Auth/Register";
+import Login from "../../../components/Auth/Login";
+import FacebookLogin from "../../../components/Auth/FacebookLogin";
 
 interface FormState {
   email: string;

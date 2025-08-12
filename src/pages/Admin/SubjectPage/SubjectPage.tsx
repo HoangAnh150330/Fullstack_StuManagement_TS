@@ -2,9 +2,9 @@ import React, { useEffect, useState } from "react";
 import { Button, Input, Table, Space, Modal, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { PlusOutlined, SearchOutlined } from "@ant-design/icons";
-import type { SubjectData } from "../../types/subject";
-import { subjectAPI } from "../../services/subject_api";
-import SubjectForm from "../../components/Subject/SubjectForm";
+import type { SubjectData } from "../../../types/subject";
+import { subjectAPI } from "../../../services/subject_api";
+import SubjectForm from "../../../components/Subject/SubjectForm";
 
 const SubjectManagementPage: React.FC = () => {
   const [data, setData] = useState<SubjectData[]>([]);

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Calendar, momentLocalizer, type View } from "react-big-calendar";
 import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
-import { getSchedulesAPI } from "../../services/schedule_api";
+import { getSchedulesAPI } from "../../../services/schedule_api";
 // (optional) dùng AntD cho nút nhanh
 
 

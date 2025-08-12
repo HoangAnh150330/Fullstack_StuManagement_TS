@@ -5,7 +5,7 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 export const studentAPI = {
   getUserProfile: async (id: string, token: string) => {
-  const res = await axios.get(`${API_URL}/api/auth/user/${id}`, {
+  const res = await axios.get(`${API_URL}/api/user/${id}`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },

@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { Button, Input, Table, Modal, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { ExclamationCircleOutlined } from "@ant-design/icons";
-import { studentAPI } from "../../services/student_api";
-import type { StudentData } from "../../types/student";
+import { studentAPI } from "../../../services/student_api";
+import type { StudentData } from "../../../types/student";
 
 const { confirm } = Modal;
 
