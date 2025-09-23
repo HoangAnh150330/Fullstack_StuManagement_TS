@@ -1,46 +1,41 @@
-import axios from "axios";
+import api from "./api";
 import type { StudentData } from "../types/student";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+// BE routes (đã mount ở app.use("/api/admin/students", studentRoutes))
+const BASE = "/admin/students";
 
 export const studentAPI = {
-  getUserProfile: async (id: string, token: string) => {
-  const res = await axios.get(`${API_URL}/api/user/${id}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    });
-    return res.data;
-  },
-
+  /** Lấy danh sách học viên (ADMIN) */
   getAll: async (): Promise<StudentData[]> => {
-    const res = await axios.get(`${API_URL}/api/auth/getall-student`);
+    const res = await api.get<StudentData[]>(`${BASE}`);
     return res.data;
   },
 
-  update: async (id: string, data: Partial<StudentData>, token: string): Promise<StudentData> => {
-    const res = await axios.put(`${API_URL}/api/auth/update-student/${id}`, data, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    return res.data.student;
+  /** Lấy hồ sơ theo id (ADMIN/TEACHER xem bất kỳ; STUDENT xem chính mình) */
+  getUserProfile: async (id: string): Promise<StudentData> => {
+    const res = await api.get<StudentData>(`${BASE}/${id}`);
+    return res.data;
   },
 
-  delete: async (id: string, token: string): Promise<void> => {
-    await axios.delete(`${API_URL}/api/auth/delete-student/${id}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+  /** Cập nhật hồ sơ (ADMIN được cập nhật bất kỳ; STUDENT chỉ cập nhật chính mình) */
+  update: async (id: string, data: Partial<StudentData>) => {
+    // Controller trả { message, student } → ưu tiên lấy student
+    const res = await api.patch<{ message: string; student: StudentData }>(`${BASE}/${id}`, data);
+    return res.data.student ?? (res.data as unknown as StudentData);
   },
 
-  uploadAvatar: async (id: string, formData: FormData, token: string): Promise<unknown> => {
-    const res = await axios.post(`${API_URL}/api/upload/avatar/${id}`, formData, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    return res.data as { message: string; avatar: string };
+  /** Xoá học viên (ADMIN) */
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`${BASE}/${id}`);
+  },
+
+  /** Upload avatar (ADMIN hoặc chính chủ); formData chứa field 'file' */
+  uploadAvatar: async (id: string, formData: FormData) => {
+    const res = await api.post<{ message: string; avatar: string }>(
+      `${BASE}/${id}/avatar`,
+      formData,
+      { headers: { "Content-Type": "multipart/form-data" } }
+    );
+    return res.data; // { message, avatar }
   },
 };

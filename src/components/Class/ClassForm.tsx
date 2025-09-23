@@ -1,7 +1,9 @@
+// src/components/Class/ClassForm.tsx
 import React, { useEffect, useState } from "react";
 import { Modal, Form, Input, Select, InputNumber, Button, Space } from "antd";
-import type { classData } from "../../types/class";
+import type { classData, ClassFormValues } from "../../types/class";
 import { subjectAPI } from "../../services/subject_api";
+import { teacherList, type TeacherLite } from "../../services/teacher_api";
 
 const { Option } = Select;
 
@@ -12,42 +14,74 @@ interface Props {
   classItem?: classData | null;
 }
 
-const teacherOptions = ["Nguyễn Nhật Anh", "Huỳnh Hoa", "Hoàng Vương", "Jony Đặng"];
-
 const dayOfWeekOptions = ["Thứ 2","Thứ 3","Thứ 4","Thứ 5","Thứ 6","Thứ 7","Chủ nhật"];
-
 const timeSlotOptions = ["07:00-09:00","09:00-11:00","13:00-15:00","15:00-17:00","18:00-20:00"];
 
 const ClassForm: React.FC<Props> = ({ open, onClose, onSubmit, classItem }) => {
-  const [form] = Form.useForm();
+  const [form] = Form.useForm<ClassFormValues>();
   const [subjects, setSubjects] = useState<string[]>([]);
+  const [teachers, setTeachers] = useState<TeacherLite[]>([]);
+  const [loadingTeachers, setLoadingTeachers] = useState(false);
 
   useEffect(() => {
     const fetchSubjects = async () => {
       try {
-        const res = await subjectAPI.getAll();
-        setSubjects(res.map((subject) => subject.name));
+        const list = await subjectAPI.getAll(); // luôn là SubjectData[]
+        setSubjects(list.map((s) => s.name));   // ['English cơ bản', ...]
       } catch (err) {
-        console.error("Lỗi khi lấy danh sách môn học:", err);
+        console.error("Lỗi khi lấy môn học:", err);
+        setSubjects([]);
       }
     };
-    fetchSubjects();
 
+    const fetchTeachers = async () => {
+      try {
+        setLoadingTeachers(true);
+        const res = await teacherList();
+        setTeachers(res);
+      } catch (err) {
+        console.error("Lỗi khi lấy giáo viên:", err);
+        setTeachers([]);
+      } finally {
+        setLoadingTeachers(false);
+      }
+    };
+
+    fetchSubjects();
+    fetchTeachers();
+  }, []);
+
+
+  // Prefill khi mở modal
+  useEffect(() => {
+    if (!open) return;
     if (classItem) {
-      form.setFieldsValue({ ...classItem, timeSlots: classItem.timeSlots || [] });
+      const raw = classItem as any;
+      const teacherIdValue =
+        typeof raw.teacherId === "string" ? raw.teacherId : raw.teacherId?._id;
+
+      form.setFieldsValue({
+        name: classItem.name,
+        subject: classItem.subject,
+        teacherId: teacherIdValue, // luôn là string
+        maxStudents: classItem.maxStudents,
+        timeSlots: classItem.timeSlots || [],
+      });
     } else {
       form.resetFields();
     }
-  }, [classItem, form]);
+  }, [open, classItem, form]);
 
   const handleOk = async () => {
-    try {
-      const values = await form.validateFields();
-      const submitData = { ...values, timeSlots: values.timeSlots || [] };
-      onSubmit(submitData);
-    } catch (err) {
-      console.log(err);
-    }
+    const values = await form.validateFields();
+    const submitData: Omit<classData, "_id"> = {
+      name: values.name,
+      subject: values.subject,
+      teacherId: values.teacherId, // gửi id
+      maxStudents: values.maxStudents,
+      timeSlots: values.timeSlots || [],
+    };
+    onSubmit(submitData);
   };
 
   return (
@@ -73,7 +107,7 @@ const ClassForm: React.FC<Props> = ({ open, onClose, onSubmit, classItem }) => {
           label="Môn học"
           rules={[{ required: true, message: "Vui lòng chọn môn học" }]}
         >
-          <Select placeholder="Chọn môn học" className="w-full">
+          <Select placeholder="Chọn môn học" showSearch optionFilterProp="children">
             {subjects.map((subject) => (
               <Option key={subject} value={subject}>
                 {subject}
@@ -83,14 +117,20 @@ const ClassForm: React.FC<Props> = ({ open, onClose, onSubmit, classItem }) => {
         </Form.Item>
 
         <Form.Item
-          name="teacher"
+          name="teacherId"
           label="Giáo viên"
           rules={[{ required: true, message: "Vui lòng chọn giáo viên" }]}
         >
-          <Select placeholder="Chọn giáo viên" className="w-full">
-            {teacherOptions.map((teacher) => (
-              <Option key={teacher} value={teacher}>
-                {teacher}
+          <Select
+            placeholder="Chọn giáo viên"
+            loading={loadingTeachers}
+            showSearch
+            optionFilterProp="children"
+          >
+            {teachers.map((t) => (
+              <Option key={t._id} value={t._id}>
+                {t.name}
+                {t.email ? ` — ${t.email}` : ""}
               </Option>
             ))}
           </Select>
@@ -116,10 +156,10 @@ const ClassForm: React.FC<Props> = ({ open, onClose, onSubmit, classItem }) => {
                       rules={[{ required: true, message: "Vui lòng chọn ngày" }]}
                       className="flex-1"
                     >
-                      <Select placeholder="Chọn ngày" className="w-full">
-                        {dayOfWeekOptions.map((day) => (
-                          <Option key={day} value={day}>
-                            {day}
+                      <Select placeholder="Chọn ngày">
+                        {dayOfWeekOptions.map((d) => (
+                          <Option key={d} value={d}>
+                            {d}
                           </Option>
                         ))}
                       </Select>
@@ -131,10 +171,10 @@ const ClassForm: React.FC<Props> = ({ open, onClose, onSubmit, classItem }) => {
                       rules={[{ required: true, message: "Vui lòng chọn khung giờ" }]}
                       className="flex-1"
                     >
-                      <Select placeholder="Chọn khung giờ" className="w-full">
-                        {timeSlotOptions.map((slot) => (
-                          <Option key={slot} value={slot}>
-                            {slot}
+                      <Select placeholder="Chọn khung giờ">
+                        {timeSlotOptions.map((s) => (
+                          <Option key={s} value={s}>
+                            {s}
                           </Option>
                         ))}
                       </Select>

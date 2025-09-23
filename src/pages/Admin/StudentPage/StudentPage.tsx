@@ -7,8 +7,24 @@ import type { StudentData } from "../../../types/student";
 
 const { confirm } = Modal;
 
+/* ------------ Helpers (type-safe, no any) ------------ */
+function ensureArray<T>(payload: unknown): T[] {
+  if (Array.isArray(payload)) return payload as T[];
+  const d = (payload as { data?: unknown })?.data;
+  return Array.isArray(d) ? (d as T[]) : [];
+}
+
+type IdLike = { id?: string; _id?: string };
+function getId(x: unknown): string {
+  const obj = x as IdLike | undefined;
+  return (obj?.id ?? obj?._id ?? "") as string;
+}
+
+/* Row cho Table: luôn có id */
+type Row = StudentData & { id: string };
+
 const StudentPage = () => {
-  const [students, setStudents] = useState<StudentData[]>([]);
+  const [students, setStudents] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
 
@@ -16,9 +32,20 @@ const StudentPage = () => {
     setLoading(true);
     try {
       const res = await studentAPI.getAll();
-      setStudents(res);
+
+      // Chuẩn hoá: luôn nhận mảng StudentData
+      const arr = ensureArray<StudentData>(res);
+
+      // Map _id/id -> id cho Table
+      const rows: Row[] = arr.map((s) => ({
+        ...s,
+        id: getId(s),
+      }));
+
+      setStudents(rows);
     } catch {
       message.error("Không thể tải danh sách học viên");
+      setStudents([]); // tránh để object gây lỗi filter/map
     } finally {
       setLoading(false);
     }
@@ -28,13 +55,7 @@ const StudentPage = () => {
     fetchStudents();
   }, []);
 
-  const handleDelete = async (id: string) => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      message.error("Không tìm thấy token. Vui lòng đăng nhập lại.");
-      return;
-    }
-
+  const handleDelete = (id: string) => {
     confirm({
       title: "Bạn có chắc chắn muốn xóa học viên này không?",
       icon: <ExclamationCircleOutlined />,
@@ -43,7 +64,7 @@ const StudentPage = () => {
       okButtonProps: { danger: true },
       onOk: async () => {
         try {
-          await studentAPI.delete(id, token);
+          await studentAPI.delete(id);
           message.success("Đã xóa học viên");
           fetchStudents();
         } catch {
@@ -57,7 +78,7 @@ const StudentPage = () => {
     (s.name || "").toLowerCase().includes(search.toLowerCase())
   );
 
-  const columns: ColumnsType<StudentData> = [
+  const columns: ColumnsType<Row> = [
     { title: "Họ tên", dataIndex: "name", key: "name" },
     { title: "Email", dataIndex: "email", key: "email" },
     { title: "SĐT", dataIndex: "phone", key: "phone" },
@@ -92,7 +113,7 @@ const StudentPage = () => {
           🎓 Quản lý học viên
         </h1>
 
-      <div className="mt-4 mb-6">
+        <div className="mt-4 mb-6">
           <Input.Search
             placeholder="Tìm kiếm học viên"
             onSearch={(value) => setSearch(value)}
@@ -103,7 +124,7 @@ const StudentPage = () => {
         </div>
       </div>
 
-      <Table<StudentData>
+      <Table<Row>
         rowKey="id"
         loading={loading}
         columns={columns}

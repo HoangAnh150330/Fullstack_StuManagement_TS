@@ -75,7 +75,7 @@ export default function EnrolledClassesPage() {
 
   const cutoffHours = 24;
 
-  const fetchData = async () => {
+  const fetchData = async () => { // thêm param cho đúng logic
     if (!studentId) return;
     setLoading(true);
     try {
@@ -96,7 +96,7 @@ export default function EnrolledClassesPage() {
   };
 
   useEffect(() => {
-    void fetchData();
+    fetchData();
   }, [studentId]);
 
   const data: Row[] = useMemo(

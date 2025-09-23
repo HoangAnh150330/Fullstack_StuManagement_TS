@@ -2,9 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Calendar, momentLocalizer, type View } from "react-big-calendar";
 import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
-import { getSchedulesAPI } from "../../../services/schedule_api";
-// (optional) dùng AntD cho nút nhanh
-
+import { getSchedulesAPI, type ScheduleItemDTO } from "../../../services/schedule_api";
 
 const localizer = momentLocalizer(moment);
 
@@ -15,80 +13,111 @@ interface CalendarEvent {
   day?: string;
   slot?: string;
 }
-interface TimeSlot { day: string; slot: string; start?: string; end?: string; }
-interface ScheduleItem { className: string; teacher: string; subject: string; timeSlots: TimeSlot[]; }
+
+const dayMap: Record<string, number> = {
+  "Chủ nhật": 0, "Thứ 2": 1, "Thứ 3": 2, "Thứ 4": 3, "Thứ 5": 4, "Thứ 6": 5, "Thứ 7": 6,
+};
+
+const pickTeacherName = (c: ScheduleItemDTO) =>
+  c.teacherName ?? c.teacher ?? c.teacherId?.name ?? "Không xác định";
+
+const pickClassName = (c: ScheduleItemDTO) =>
+  c.className ?? c.name ?? (c as { class?: string }).class ?? "Lớp";
+
+const pickSubject = (c: ScheduleItemDTO) => c.subject ?? c.subjectName ?? "Môn học";
+
+function hhmmToParts(hhmm: string): { h: number; m: number } {
+  const [h, m] = hhmm.split(":").map((v) => Number(v || 0));
+  return { h, m };
+}
 
 const TeachingSchedulePage: React.FC = () => {
   const [view, setView] = useState<View>("week");
   const [date, setDate] = useState(new Date());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
 
-  const fetchEvents = async () => {
-    try {
-      const data = await getSchedulesAPI();
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await getSchedulesAPI(); // luôn là mảng
+        const parsed: CalendarEvent[] = [];
 
-      const dayMap: Record<string, number> = {
-        "Chủ nhật": 0, "Thứ 2": 1, "Thứ 3": 2, "Thứ 4": 3, "Thứ 5": 4, "Thứ 6": 5, "Thứ 7": 6,
-      };
+        data.forEach((c) => {
+          const teacher = pickTeacherName(c);
+          const className = pickClassName(c);
+          const subject = pickSubject(c);
 
-      const parsed: CalendarEvent[] = [];
-      data.forEach((c: ScheduleItem) => {
-        c.timeSlots.forEach(({ day, slot, start, end }) => {
-          if (!day || !slot || !start || !end) return;
-          const [h1, h2] = slot.split("-");
-          const [sh, sm] = h1.split(":").map(Number);
-          const [eh, em] = h2.split(":").map(Number);
+          (c.timeSlots ?? []).forEach(({ day, slot, start, end }) => {
+            if (!day || !slot) return;
+            const dow = dayMap[day];
+            if (dow === undefined) return;
 
-          const startDate = moment(start);
-          const endDate = moment(end);
-          const dow = dayMap[day];
-          if (dow === undefined) return;
+            const [sHH, eHH] = slot.split("-");
+            const { h: sh, m: sm } = hhmmToParts(sHH);
+            const { h: eh, m: em } = hhmmToParts(eHH);
 
-          const current = startDate.clone().day(dow);
-          if (current.isBefore(startDate)) current.add(7, "days");
+            // Nếu có ISO start/end: lặp theo tuần trong [start..end]
+            if (start && end) {
+              const startDate = moment(start).startOf("day");
+              const endDate = moment(end).endOf("day");
+              let current = startDate.clone().day(dow);
+              if (current.isBefore(startDate)) current = current.add(7, "days");
 
-          while (current.isSameOrBefore(endDate)) {
-            const s = current.clone().hour(sh).minute(sm).toDate();
-            const e = current.clone().hour(eh).minute(em).toDate();
-            parsed.push({ title: `${c.subject} - ${c.className} - GV: ${c.teacher}`, start: s, end: e, day, slot });
-            current.add(7, "days");
-          }
+              while (current.isSameOrBefore(endDate, "day")) {
+                parsed.push({
+                  title: `${subject} - ${className} - GV: ${teacher}`,
+                  start: current.clone().hour(sh).minute(sm).second(0).toDate(),
+                  end: current.clone().hour(eh).minute(em).second(0).toDate(),
+                  day,
+                  slot,
+                });
+                current = current.add(7, "days");
+              }
+              return;
+            }
+
+            // Nếu KHÔNG có ISO: ghép vào tuần đang xem (date)
+            const base = moment(date).startOf("week").day(dow);
+            parsed.push({
+              title: `${subject} - ${className} - GV: ${teacher}`,
+              start: base.clone().hour(sh).minute(sm).second(0).toDate(),
+              end: base.clone().hour(eh).minute(em).second(0).toDate(),
+              day,
+              slot,
+            });
+          });
         });
-      });
 
-      setEvents(parsed);
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  useEffect(() => { fetchEvents(); }, [date]);
-
-
+        setEvents(parsed);
+      } catch (e) {
+        console.error("Fetch schedules failed:", e);
+        setEvents([]);
+      }
+    })();
+  }, [date]); // đổi tuần/tháng sẽ rebuild theo tuần hiện tại
 
   return (
     <div className="p-5 bg-slate-50">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-2xl font-bold text-slate-800 m-0">Lịch giảng dạy</h2>
       </div>
-
-      {/* ✅ Bọc Calendar trong container có chiều cao cố định */}
       <div className="h-[650px] bg-white rounded-md shadow">
         <Calendar<CalendarEvent>
           localizer={localizer}
           events={events}
-          view={view}                    // controlled view
-          onView={(v) => setView(v)}     // đồng bộ khi người dùng đổi view bằng toolbar mặc định
+          view={view}
+          onView={(v) => setView(v)}
           date={date}
           onNavigate={(d) => setDate(d)}
           views={["week", "month"]}
           step={30}
           timeslots={2}
-          // min/max chỉ dùng để giới hạn KHUNG GIỜ của view tuần/ngày → dùng mốc ngày bất kỳ cho an toàn
           min={new Date(1970, 0, 1, 7, 0)}
           max={new Date(1970, 0, 1, 21, 0)}
-          style={{ height: "100%" }}     // Calendar chiếm 100% chiều cao container
-          eventPropGetter={() => ({ className: "bg-blue-600 text-white border-0 px-1.5 py-0.5 rounded" })}
+          style={{ height: "100%" }}
+          eventPropGetter={() => ({
+            className: "bg-blue-600 text-white border-0 px-1.5 py-0.5 rounded",
+          })}
         />
       </div>
     </div>

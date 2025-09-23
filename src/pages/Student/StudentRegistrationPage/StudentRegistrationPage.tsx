@@ -43,7 +43,7 @@ type SubjectItem = { _id: string; name: string; code: string };
 
 const dayOptions = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"];
 
-// ===== Helpers =====
+/* ================= Helpers ================= */
 function toArray<T>(data: unknown): T[] {
   if (Array.isArray(data)) return data as T[];
   if (data && typeof data === "object") {
@@ -118,12 +118,15 @@ const fallbackPalette = {
   border: "from-slate-300/70 to-slate-400/70",
 };
 
+/* ================= Component ================= */
 const StudentRegistrationPage: React.FC = () => {
   const navigate = useNavigate();
   const auth = useSelector((s: RootState) => s.auth);
   const studentId = auth.user?._id;
   const [modal, contextHolder] = Modal.useModal();
+
   // gắn token cho axios instance khi token thay đổi
+  // 
   useEffect(() => {
     setAuthToken(auth.user?.token);
   }, [auth.user?.token]);
@@ -133,7 +136,7 @@ const StudentRegistrationPage: React.FC = () => {
   const [subjects, setSubjects] = useState<SubjectItem[]>([]);
   const [enrolledClassIds, setEnrolledClassIds] = useState<Set<string>>(new Set());
 
-  // Loading riêng cho từng nút → UX tốt hơn
+  // Loading riêng cho từng nút
   const [enrollingId, setEnrollingId] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
 
@@ -152,7 +155,50 @@ const StudentRegistrationPage: React.FC = () => {
         getMyScheduleAPI(studentId) // cần token
       ]);
 
-      const list = clsS.status === "fulfilled" ? toArray<ClassItem>(clsS.value) : [];
+      // ===== CHUẨN HOÁ DỮ LIỆU LỚP =====
+      // fullfilled , all 
+      const raw = clsS.status === "fulfilled" ? toArray<any>(clsS.value) : [];
+      const list: ClassItem[] = raw.map((c: any) => {
+        // subject có thể là string hoặc object { name }
+        const subject =
+          typeof c.subject === "object" && c.subject
+            ? (c.subject.name ?? c.subject.title ?? "")
+            : (c.subject ?? "");
+
+        // tên GV ưu tiên populate -> virtual -> field cũ
+        const teacherName =
+          c.teacherId?.name ??
+          c.teacherName ??
+          c.teacher ??
+          "";
+
+        // chuẩn hoá timeSlots
+        const timeSlots: TimeSlot[] = Array.isArray(c.timeSlots)
+          ? c.timeSlots.map((t: any) => {
+              const day =
+                t.day ??
+                t.dayVN ??
+                t.dayOfWeekName ??
+                t.dayOfWeekLabel ??
+                ""; // "Thứ 2"...
+              const slot =
+                t.slot ??
+                (t.start && t.end ? `${String(t.start).slice(0,5)}-${String(t.end).slice(0,5)}` : "");
+              return { day, slot };
+            }).filter((t: TimeSlot) => t.day && t.slot)
+          : [];
+
+        return {
+          _id: String(c._id),
+          name: c.name ?? "Không xác định",
+          subject: subject || "-",
+          teacher: teacherName || "-",
+          maxStudents: Number(c.maxStudents ?? c.capacity ?? 0),
+          timeSlots,
+          enrolledCount: typeof c.enrolledCount === "number" ? c.enrolledCount : undefined,
+        };
+      });
+
       const subs = subS.status === "fulfilled" ? toArray<SubjectItem>(subS.value) : [];
 
       // nếu lấy lịch fail (401) thì coi như chưa đăng ký lớp nào
@@ -162,6 +208,7 @@ const StudentRegistrationPage: React.FC = () => {
       setClasses(list);
       setSubjects(subs);
 
+      // đánh dấu những lớp đã đăng ký
       const enrolled = new Set<string>();
       const byId = new Set(mySchedule.map(s => s.classId).filter(Boolean) as string[]);
       list.forEach(c => {
@@ -185,6 +232,12 @@ const StudentRegistrationPage: React.FC = () => {
     void fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studentId]);
+
+  // hiển thị lịch gọn gàng
+  function formatSchedule(timeSlots?: { day: string; slot: string }[]) {
+    if (!timeSlots || timeSlots.length === 0) return "-";
+    return timeSlots.map((s) => `${s.day} ${s.slot}`).join("; ");
+  }
 
   const filtered = useMemo(() => {
     // 1) chỉ lấy lớp CHƯA đăng ký
@@ -210,65 +263,32 @@ const StudentRegistrationPage: React.FC = () => {
     });
   }, [classes, enrolledClassIds, q, subjectFilter, dayFilter]);
 
-  // ====== ACTIONS ======
-
-  // Xác nhận + Đăng ký (không dùng optimistic để đỡ phải revert)
-// Xác nhận + Đăng ký
-const confirmEnroll = (c: ClassItem) => {
-  modal.confirm({
-    title: "Xác nhận đăng ký lớp?",
-    content: (
-      <div className="space-y-2">
-        <div><b>{c.subject}</b> — {c.name}</div>
-        <div>GV: <b>{c.teacher}</b></div>
-        <div>
-          Khung giờ:
-          <Space size={[6, 6]} wrap>
-            {c.timeSlots.map((t, i) => (
-              <Tag key={`${c._id}-${t.day}-${t.slot}-${i}`}>{t.day} • {t.slot}</Tag>
-            ))}
-          </Space>
+  /* ============ Actions ============ */
+  const confirmEnroll = (c: ClassItem) => {
+    modal.confirm({
+      title: "Xác nhận đăng ký lớp?",
+      content: (
+        <div className="space-y-2">
+          <div><b>{c.subject}</b> — {c.name}</div>
+          <div>GV: <b>{c.teacher}</b></div>
+          <div>
+            Khung giờ:
+            <Space size={[6, 6]} wrap>
+              {c.timeSlots.map((t, i) => (
+                <Tag key={`${c._id}-${t.day}-${t.slot}-${i}`}>{t.day} • {t.slot}</Tag>
+              ))}
+            </Space>
+          </div>
         </div>
-      </div>
-    ),
-    okText: "Đăng ký",
-    cancelText: "Hủy",
-    onOk: () => doEnroll(c),
-    okButtonProps: { loading: enrollingId === c._id },
-    zIndex: 2000,            // 👈 phòng khi bị layer khác chèn
-    centered: true,
-  });
-};
-
-// Hủy đăng ký
-const doCancel = async (classId: string, info: { name: string; subject: string }) => {
-  modal.confirm({
-    title: "Xác nhận hủy đăng ký?",
-    content: `${info.subject} - ${info.name}`,
-    okText: "Hủy đăng ký",
-    cancelText: "Đóng",
-    okButtonProps: { danger: true, loading: cancellingId === classId },
-    onOk: async () => {
-      setCancellingId(classId);
-      try {
-        await cancelEnrollAPI(classId);
-        setEnrolledClassIds((prev) => {
-          const next = new Set(prev);
-          next.delete(classId);
-          return next;
-        });
-        message.success("Đã hủy đăng ký");
-      } catch (err) {
-        message.error(getErrorMessage(err, "Hủy thất bại"));
-      } finally {
-        setCancellingId(null);
-      }
-    },
-    zIndex: 2000,
-    centered: true,
-  });
-};
-
+      ),
+      okText: "Đăng ký",
+      cancelText: "Hủy",
+      onOk: () => doEnroll(c),
+      okButtonProps: { loading: enrollingId === c._id },
+      zIndex: 2000,
+      centered: true,
+    });
+  };
 
   const doEnroll = async (c: ClassItem) => {
     setEnrollingId(c._id);
@@ -283,8 +303,36 @@ const doCancel = async (classId: string, info: { name: string; subject: string }
     }
   };
 
+  const doCancel = async (classId: string, info: { name: string; subject: string }) => {
+    modal.confirm({
+      title: "Xác nhận hủy đăng ký?",
+      content: `${info.subject} - ${info.name}`,
+      okText: "Hủy đăng ký",
+      cancelText: "Đóng",
+      okButtonProps: { danger: true, loading: cancellingId === classId },
+      onOk: async () => {
+        setCancellingId(classId);
+        try {
+          await cancelEnrollAPI(classId);
+          setEnrolledClassIds((prev) => {
+            const next = new Set(prev);
+            next.delete(classId);
+            return next;
+          });
+          message.success("Đã hủy đăng ký");
+        } catch (err) {
+          message.error(getErrorMessage(err, "Hủy thất bại"));
+        } finally {
+          setCancellingId(null);
+        }
+      },
+      zIndex: 2000,
+      centered: true,
+    });
+  };
 
-  const Card: React.FC<{ c: ClassItem; enrolled: boolean }> = ({ c, enrolled }) => {
+  /* ============ Card ============ */
+  const CardX: React.FC<{ c: ClassItem; enrolled: boolean }> = ({ c, enrolled }) => {
     const pal = subjectPalette[c.subject] ?? fallbackPalette;
     const isLoading = enrollingId === c._id || cancellingId === c._id;
     const percent =
@@ -299,14 +347,9 @@ const doCancel = async (classId: string, info: { name: string; subject: string }
           <div
             className={`relative overflow-hidden rounded-2xl bg-white border border-white shadow-sm group-hover:shadow-2xl group-hover:-translate-y-0.5 transition-all duration-300 ring-1 ${pal.ring}`}
           >
-            <div
-              className={`pointer-events-none absolute -top-10 -right-10 h-28 w-28 rounded-full bg-gradient-to-br ${pal.ribbon} opacity-15 blur-2xl`}
-            />
-            <div
-              className={`pointer-events-none absolute -bottom-12 -left-12 h-32 w-32 rounded-full bg-gradient-to-br ${pal.ribbon} opacity-10 blur-2xl`}
-            />
+            <div className={`pointer-events-none absolute -top-10 -right-10 h-28 w-28 rounded-full bg-gradient-to-br ${pal.ribbon} opacity-15 blur-2xl`} />
+            <div className={`pointer-events-none absolute -bottom-12 -left-12 h-32 w-32 rounded-full bg-gradient-to-br ${pal.ribbon} opacity-10 blur-2xl`} />
 
-            {/* Badge góc khi đã đăng ký */}
             {enrolled && (
               <div className="absolute left-0 top-0">
                 <div className="rounded-br-2xl rounded-tl-2xl bg-emerald-500/90 text-white text-xs font-semibold px-3 py-1 flex items-center gap-1">
@@ -396,6 +439,7 @@ const doCancel = async (classId: string, info: { name: string; subject: string }
     );
   };
 
+  /* ============ Render ============ */
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
       {/* Top bar */}
@@ -476,7 +520,7 @@ const doCancel = async (classId: string, info: { name: string; subject: string }
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {filtered.map((c) => (
-                <Card key={c._id} c={c} enrolled={enrolledClassIds.has(c._id)} />
+                <CardX key={c._id} c={c} enrolled={enrolledClassIds.has(c._id)} />
               ))}
             </div>
           )}

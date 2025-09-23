@@ -20,6 +20,18 @@ import ChangePasswordPage from "../pages/Public/ChangePasswordPage/ChangePasswor
 import StudentRegistrationPage from "../pages/Student/StudentRegistrationPage/StudentRegistrationPage";
 import StudentSchedulePage from "../pages/Student/StudentSchedulePage/StudentSchedulePage";
 import EnrolledClassesPage from "../pages/Student/EnrolledClassesPage/EnrolledClassPage";
+// Teache
+
+import TeacherDashboard from "../pages/Teacher/TeacherDashboard/TeacherDashboard";
+import TeacherLayout from "../components/Teacher/Layout/TeacherLayout";
+import MyClassesPage from "../pages/Teacher/MyClassPage/MyClassPage";
+import ClassDetailPage from "../pages/Teacher/ClassDetailPage/ClassDetailPage";
+import AttendancePage from "../pages/Teacher/AttendancePage/AttendancePage";
+import GradesPage from "../pages/Teacher/GradePage/GradePage";
+import MaterialsPage from "../pages/Teacher/MaterialPage/MaterialPage";
+import AnnouncementsPage from "../pages/Teacher/AnnouncementPage/AnnouncementPage";
+import ChangeRequestPage from "../pages/Teacher/ChangeRequestPage/ChangeRequestPage";
+import TeachingSchedulePage1 from "../pages/Teacher/TeachingSchedulePage/TeachingSchedulePage";
 
 export const router = createBrowserRouter([
   { path: "/", element: <HomePage /> },
@@ -64,6 +76,39 @@ export const router = createBrowserRouter([
       <EnrolledClassesPage />
     </RequireRole>
   ),
+},
+  //Teacher
+  {
+  path: "/teacher",
+  element: (
+    <RequireRole allowed={["teacher"]} redirectTo="/403">
+      <TeacherLayout />
+    </RequireRole>
+  ),
+  children: [
+    { index: true, element: <Navigate to="dashboard" replace /> },
+    { path: "dashboard", element: <TeacherDashboard /> },
+
+    // Quản lý lớp học
+    { path: "classes", element: <MyClassesPage /> },
+    { path: "classes/:classId", element: <ClassDetailPage /> },
+
+    // Điểm danh
+    { path: "attendance", element: <AttendancePage /> },
+
+    // Điểm số
+    { path: "grades", element: <GradesPage /> },
+
+    // Tài liệu
+    { path: "materials", element: <MaterialsPage /> },
+
+    // Thông báo
+    { path: "announcements", element: <AnnouncementsPage /> },
+
+    // Lịch dạy & Đề xuất đổi lịch
+    { path: "schedule", element: <TeachingSchedulePage1 /> },
+    { path: "schedule/change-request", element: <ChangeRequestPage /> },
+  ],
 },
 
   // ======= Admin area (as-is) =======

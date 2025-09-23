@@ -11,6 +11,7 @@ import { useNavigate } from "react-router-dom";
 
 const localizer = momentLocalizer(moment);
 
+/* ===== Types ===== */
 interface CalendarEvent {
   title: string;
   start: Date;
@@ -23,10 +24,10 @@ interface CalendarEvent {
 }
 
 interface TimeSlot {
-  day: string;
-  slot: string;
-  start?: string;
-  end?: string;
+  day: string;          // "Thứ 2"..."Chủ nhật"
+  slot: string;         // "HH:mm-HH:mm"
+  start?: string;       // ISO (optional)
+  end?: string;         // ISO (optional)
 }
 
 interface ScheduleItem {
@@ -36,8 +37,15 @@ interface ScheduleItem {
   timeSlots: TimeSlot[];
 }
 
+/* ===== Utils ===== */
 const dayMap: Record<string, number> = {
-  "Chủ nhật": 0, "Thứ 2": 1, "Thứ 3": 2, "Thứ 4": 3, "Thứ 5": 4, "Thứ 6": 5, "Thứ 7": 6,
+  "Chủ nhật": 0,
+  "Thứ 2": 1,
+  "Thứ 3": 2,
+  "Thứ 4": 3,
+  "Thứ 5": 4,
+  "Thứ 6": 5,
+  "Thứ 7": 6,
 };
 
 function parseSlot(slot: string) {
@@ -48,19 +56,25 @@ function parseSlot(slot: string) {
 }
 
 function buildEventsWithRange(
-  items: ScheduleItem[],
+  items: ScheduleItem[] | unknown,
   rangeStart: moment.Moment,
   rangeEnd: moment.Moment
 ): CalendarEvent[] {
+  // Guard: nếu không phải mảng thì trả mảng rỗng (tránh .forEach on non-array)
+  if (!Array.isArray(items)) return [];
+
   const events: CalendarEvent[] = [];
+
   items.forEach((c) => {
-    c.timeSlots.forEach(({ day, slot, start, end }) => {
+    (c.timeSlots ?? []).forEach(({ day, slot, start, end }) => {
       if (!day || !slot) return;
-      const dow = dayMap[day];
+      const dow = dayMap[day as keyof typeof dayMap];
       if (dow === undefined) return;
 
       const { sh, sm, eh, em } = parseSlot(slot);
 
+      // Nếu BE có ISO start/end: giới hạn phạm vi lặp trong [start..end],
+      // còn không sẽ dùng rangeStart/rangeEnd của current view.
       const effStart = start ? moment(start).startOf("day") : rangeStart.clone().startOf("day");
       const effEnd   = end   ? moment(end).endOf("day")   : rangeEnd.clone().endOf("day");
 
@@ -68,12 +82,14 @@ function buildEventsWithRange(
       const to   = moment.min(rangeEnd.clone().endOf("day"), effEnd);
       if (from.isAfter(to)) return;
 
+      // Tìm ngày gần nhất là đúng thứ (dow)
       let current = from.clone().day(dow);
       if (current.isBefore(from)) current = current.add(7, "days");
 
       while (current.isSameOrBefore(to)) {
         const s = current.clone().hour(sh).minute(sm).second(0).toDate();
         const e = current.clone().hour(eh).minute(em).second(0).toDate();
+
         events.push({
           title: `${c.subject} - ${c.className} - GV: ${c.teacher}`,
           start: s,
@@ -84,10 +100,12 @@ function buildEventsWithRange(
           className: c.className,
           teacher: c.teacher,
         });
+
         current.add(7, "days");
       }
     });
   });
+
   return events;
 }
 
@@ -100,6 +118,7 @@ function getErrorMessage(err: unknown, fallback = "Có lỗi xảy ra"): string 
   return fallback;
 }
 
+/* ===== Component ===== */
 const StudentSchedulePage: React.FC = () => {
   const navigate = useNavigate();
   const user = useSelector((s: RootState) => s.auth.user);
@@ -130,8 +149,16 @@ const StudentSchedulePage: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        const data: ScheduleItem[] = await getMyScheduleAPI(studentId);
-        const built = buildEventsWithRange(data, rangeStart, rangeEnd);
+        const raw = await getMyScheduleAPI(studentId);
+
+        // Chuẩn hoá payload về mảng
+        const items: ScheduleItem[] = Array.isArray(raw)
+          ? raw
+          : Array.isArray((raw as any)?.data)
+          ? (raw as any).data
+          : [];
+
+        const built = buildEventsWithRange(items, rangeStart, rangeEnd);
         setEvents(built);
       } catch (err) {
         setError(getErrorMessage(err, "Không tải được thời khóa biểu"));

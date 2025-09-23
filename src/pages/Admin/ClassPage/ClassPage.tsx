@@ -1,3 +1,4 @@
+// src/pages/Admin/ClassPage/ClassPage.tsx  (hoặc index.tsx tùy cấu trúc)
 import React, { useEffect, useState } from "react";
 import { Button, Input, Table, Space, Modal } from "antd";
 import { PlusOutlined, SearchOutlined } from "@ant-design/icons";
@@ -8,16 +9,22 @@ import { classAPI } from "../../../services/class_api";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-// ---- Utils: safe error extractor (no 'any')
-type MaybeErrorShape = {
-  response?: { data?: { message?: string } };
+/* ---------- Helpers (type-safe, no any) ---------- */
+function ensureArray<T>(payload: unknown): T[] {
+  if (Array.isArray(payload)) return payload as T[];
+  const d = (payload as { data?: unknown })?.data;
+  return Array.isArray(d) ? (d as T[]) : [];
+}
+
+type MaybeErr = {
+  response?: { data?: { message?: string }; status?: number };
   data?: { message?: string };
   message?: unknown;
 };
 const getErrMsg = (e: unknown, fallback = "Có lỗi xảy ra") => {
   if (typeof e === "string") return e;
   if (e && typeof e === "object") {
-    const m = e as MaybeErrorShape;
+    const m = e as MaybeErr;
     return (
       m.response?.data?.message ??
       m.data?.message ??
@@ -27,6 +34,22 @@ const getErrMsg = (e: unknown, fallback = "Có lỗi xảy ra") => {
   }
   return fallback;
 };
+
+// Một số BE populate hoặc virtual khác nhau:
+type WithTeacherVariants =
+  | { teacherName?: string; teacher?: string; teacherId?: { name?: string; email?: string } }
+  | { teacherName?: string; teacher?: string; teacherId?: string | undefined };
+
+function teacherNameOf(item: classData & WithTeacherVariants): string {
+  if (item.teacherName) return item.teacherName;
+  const tid = (item as any).teacherId; // chỉ để đọc thuộc tính, không cast rộng
+  if (tid && typeof tid === "object" && "name" in tid && typeof tid.name === "string") {
+    return tid.name;
+  }
+  return (item as any).teacher ?? ""; // field cũ nếu có
+}
+
+/* ------------------------------------------------ */
 
 const ClassManagementPage: React.FC = () => {
   const [data, setData] = useState<classData[]>([]);
@@ -40,9 +63,11 @@ const ClassManagementPage: React.FC = () => {
   const fetchClasses = async () => {
     try {
       const res = await classAPI.getAll();
-      setData(res);
+      const arr = ensureArray<classData>(res);     // ⬅️ unwrap về mảng
+      setData(arr);
     } catch (e: unknown) {
       toast.error(getErrMsg(e, "Không thể tải danh sách lớp học"));
+      setData([]);
     }
   };
 
@@ -82,34 +107,38 @@ const ClassManagementPage: React.FC = () => {
       setSelectedClass(null);
       fetchClasses();
     } catch (e: unknown) {
-      // ví dụ lỗi 409 từ BE
-      const msg = getErrMsg(e, "Có lỗi xảy ra khi lưu");
-      if (typeof e === "object" && e && "response" in e) {
-        const status = (e as { response?: { status?: number } }).response?.status;
-        if (status === 409) {
-          toast.error(getErrMsg(e, "Giáo viên bị trùng lịch"));
-          return;
-        }
+      const status = (e as MaybeErr)?.response?.status;
+      if (status === 409) {
+        toast.error(getErrMsg(e, "Giáo viên bị trùng lịch"));
+        return;
       }
-      toast.error(msg);
+      toast.error(getErrMsg(e, "Có lỗi xảy ra khi lưu"));
     }
   };
 
-  const filteredData = data.filter((item) =>
-    item.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredData = data.filter((item) => {
+    const teacherName = teacherNameOf(item);
+    return (
+      (item.name ?? "").toLowerCase().includes(search.toLowerCase()) ||
+      teacherName.toLowerCase().includes(search.toLowerCase())
+    );
+  });
 
   const columns: ColumnsType<classData> = [
     { title: "Tên lớp", dataIndex: "name", key: "name" },
     { title: "Môn học", dataIndex: "subject", key: "subject" },
-    { title: "Giáo viên", dataIndex: "teacher", key: "teacher" },
+    {
+      title: "Giáo viên",
+      key: "teacher",
+      render: (_: unknown, r) => teacherNameOf(r as classData & WithTeacherVariants),
+    },
     { title: "Sĩ số tối đa", dataIndex: "maxStudents", key: "maxStudents" },
     {
       title: "Lịch học",
       key: "timeSlots",
       render: (_: unknown, record) => (
         <div className="space-y-0.5">
-          {record.timeSlots.map((ts, idx) => (
+          {(record.timeSlots ?? []).map((ts, idx) => (
             <div key={idx}>
               {ts.day} - {ts.slot}
             </div>
