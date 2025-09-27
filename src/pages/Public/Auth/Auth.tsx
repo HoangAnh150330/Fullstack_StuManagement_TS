@@ -2,24 +2,22 @@ import { useState } from "react";
 import Register from "../../../components/Auth/Register";
 import Login from "../../../components/Auth/Login";
 import FacebookLogin from "../../../components/Auth/FacebookLogin";
-
-interface FormState {
-  email: string;
-  password: string;
-  confirmPassword?: string;
-  otp?: string;
-}
+import type { AuthFormState } from "../../../types/auth";
 
 export default function Auth() {
-  const [isLogin, setIsLogin] = useState(true);
+  const [isLogin, setIsLogin] = useState<boolean>(true);
   const [step, setStep] = useState<"form" | "otp">("form");
-  const [form, setForm] = useState<FormState>({
+  const [form, setForm] = useState<AuthFormState>({
     email: "",
     password: "",
     confirmPassword: "",
     otp: "",
   });
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState<string>("");
+
+  // ✅ helper để update form
+  const updateForm = (newValues: Partial<AuthFormState>) =>
+    setForm((prev) => ({ ...prev, ...newValues }));
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-purple-200 to-sky-200 p-5">
@@ -33,23 +31,19 @@ export default function Auth() {
         )}
 
         {isLogin ? (
-          <>
-            {/* Form Login */}
-            <div className="w-full flex flex-col gap-4">
-              <Login
-                setMessage={setMessage}
-                form={{ email: form.email, password: form.password }}
-                setForm={(newForm) => setForm((prev) => ({ ...prev, ...newForm }))}
-              />
-              <FacebookLogin
-                setMessage={setMessage}
-                form={{ email: form.email }}
-                setForm={(updater) => setForm((prev) => updater(prev))}
-              />
-            </div>
-          </>
+          <div className="w-full flex flex-col gap-4">
+            <Login
+              setMessage={setMessage}
+              form={{ email: form.email, password: form.password }}
+              setForm={updateForm}
+            />
+            <FacebookLogin
+              setMessage={setMessage}
+              form={{ email: form.email }}
+              setForm={updateForm}
+            />
+          </div>
         ) : (
-          // Form Register (đã dùng Tailwind trong component con)
           <div className="w-full">
             <Register
               setMessage={setMessage}
@@ -57,7 +51,7 @@ export default function Auth() {
               setStep={setStep}
               step={step}
               form={form}
-              setForm={setForm}
+              setForm={updateForm}
             />
           </div>
         )}

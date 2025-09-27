@@ -40,14 +40,28 @@ type WithTeacherVariants =
   | { teacherName?: string; teacher?: string; teacherId?: { name?: string; email?: string } }
   | { teacherName?: string; teacher?: string; teacherId?: string | undefined };
 
+function isTeacherObj(
+  tid: unknown
+): tid is { name?: string; email?: string } {
+  return (
+    typeof tid === "object" &&
+    tid !== null &&
+    "name" in tid
+  );
+}
+
 function teacherNameOf(item: classData & WithTeacherVariants): string {
   if (item.teacherName) return item.teacherName;
-  const tid = (item as any).teacherId; // chỉ để đọc thuộc tính, không cast rộng
-  if (tid && typeof tid === "object" && "name" in tid && typeof tid.name === "string") {
+
+  const tid = item.teacherId;
+  if (isTeacherObj(tid) && typeof tid.name === "string") {
     return tid.name;
   }
-  return (item as any).teacher ?? ""; // field cũ nếu có
+
+  return item.teacher ?? "";
 }
+
+
 
 /* ------------------------------------------------ */
 

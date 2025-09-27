@@ -1,9 +1,18 @@
-export interface LoginPayLoad {
+// types/auth.ts
+export type UserRole = "admin" | "teacher" | "student";
+
+export interface User {
+  _id: string;
+  email: string;
+  role: UserRole;
+}
+
+export interface LoginPayload {
   email: string;
   password: string;
 }
 
-export interface RegisterPayLoad {
+export interface RegisterPayload {
   email: string;
   password: string;
 }
@@ -13,19 +22,25 @@ export interface VerifyOTPPayload {
   otp: string;
 }
 
-// ==== Bổ sung để fix lỗi ====
-export type Role = "student" | "teacher" | "admin"; // thêm 'teacher' nếu BE có
-
-export interface AuthUser {
-  _id: string;
-  name: string;
+// ✅ form state dùng cho cả login/register
+export interface AuthFormState {
   email: string;
-  role: Role;
-  avatar?: string;
+  password: string;
+  confirmPassword?: string;
+  otp?: string;
 }
 
+// Response từ BE
 export interface AuthResponse {
+  success?: boolean;
+  data?: {
+    token?: string;
+    accessToken?: string;
+    user?: User;
+    message?: string;
+  };
+  token?: string;
+  accessToken?: string;
+  user?: User;
   message?: string;
-  token: string;
-  user: AuthUser;
 }

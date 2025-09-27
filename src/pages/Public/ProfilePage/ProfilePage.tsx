@@ -57,23 +57,30 @@ const ProfilePage: React.FC = () => {
     try {
       if (!userId || !token) return;
       setLoading(true);
-      const data: APIResponse = await studentAPI.getUserProfile(userId, token);
+
+      const res = await studentAPI.getUserProfile(userId, token);
+      console.log("Profile API response:", res);
+
+      // Lấy ra phần data
+      const u = res.data || res;  
+
       setFormData({
-        name: data.name || "",
-        email: data.email || "",
-        phone: data.phone || "",
-        gender: data.gender || "",
-        dob: data.dob || "",
-        province: data.province || "",
-        avatar: data.avatar || "",
+        name: u.name || "",
+        email: u.email || "",
+        phone: u.phone || "",
+        gender: u.gender || "",
+        dob: u.dob || "",
+        province: u.province || "",
+        avatar: u.avatar || "",
       });
-      setAvatarPreview(data.avatar || null);
+      setAvatarPreview(u.avatar || null);
     } catch {
       toast.error("Không thể tải thông tin người dùng.");
     } finally {
       setLoading(false);
     }
   };
+
 
   const fetchProvinces = async () => {
     try {
@@ -245,7 +252,6 @@ const ProfilePage: React.FC = () => {
               size="large"
               showSearch
               options={provinces}
-              value={formData.province}
               onChange={(val) => handleChange("province", val)}
               placeholder="Chọn tỉnh/thành phố"
               className="w-full"

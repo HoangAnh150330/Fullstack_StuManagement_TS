@@ -2,20 +2,19 @@ import React, { useEffect, useState } from "react";
 import { Calendar, momentLocalizer, type View } from "react-big-calendar";
 import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
-import { getSchedulesAPI, type ScheduleItemDTO } from "../../../services/schedule_api";
+import { getSchedulesAPI } from "../../../services/schedule_api";
+import type { ScheduleEvent, ScheduleItemDTO } from "../../../types/schedule";
 
 const localizer = momentLocalizer(moment);
 
-interface CalendarEvent {
-  title: string;
-  start: Date;
-  end: Date;
-  day?: string;
-  slot?: string;
-}
-
 const dayMap: Record<string, number> = {
-  "Chủ nhật": 0, "Thứ 2": 1, "Thứ 3": 2, "Thứ 4": 3, "Thứ 5": 4, "Thứ 6": 5, "Thứ 7": 6,
+  "Chủ nhật": 0,
+  "Thứ 2": 1,
+  "Thứ 3": 2,
+  "Thứ 4": 3,
+  "Thứ 5": 4,
+  "Thứ 6": 5,
+  "Thứ 7": 6,
 };
 
 const pickTeacherName = (c: ScheduleItemDTO) =>
@@ -24,7 +23,8 @@ const pickTeacherName = (c: ScheduleItemDTO) =>
 const pickClassName = (c: ScheduleItemDTO) =>
   c.className ?? c.name ?? (c as { class?: string }).class ?? "Lớp";
 
-const pickSubject = (c: ScheduleItemDTO) => c.subject ?? c.subjectName ?? "Môn học";
+const pickSubject = (c: ScheduleItemDTO) =>
+  c.subject ?? c.subjectName ?? "Môn học";
 
 function hhmmToParts(hhmm: string): { h: number; m: number } {
   const [h, m] = hhmm.split(":").map((v) => Number(v || 0));
@@ -34,18 +34,20 @@ function hhmmToParts(hhmm: string): { h: number; m: number } {
 const TeachingSchedulePage: React.FC = () => {
   const [view, setView] = useState<View>("week");
   const [date, setDate] = useState(new Date());
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [events, setEvents] = useState<ScheduleEvent[]>([]);
 
   useEffect(() => {
     (async () => {
       try {
-        const data = await getSchedulesAPI(); // luôn là mảng
-        const parsed: CalendarEvent[] = [];
+        const data = await getSchedulesAPI();
+        const parsed: ScheduleEvent[] = [];
 
         data.forEach((c) => {
-          const teacher = pickTeacherName(c);
-          const className = pickClassName(c);
-          const subject = pickSubject(c);
+          const base: Omit<ScheduleEvent, "startTime" | "endTime"> = {
+            subjectName: pickSubject(c),
+            className: pickClassName(c),
+            teacherName: pickTeacherName(c),
+          };
 
           (c.timeSlots ?? []).forEach(({ day, slot, start, end }) => {
             if (!day || !slot) return;
@@ -56,7 +58,7 @@ const TeachingSchedulePage: React.FC = () => {
             const { h: sh, m: sm } = hhmmToParts(sHH);
             const { h: eh, m: em } = hhmmToParts(eHH);
 
-            // Nếu có ISO start/end: lặp theo tuần trong [start..end]
+            // Nếu có start/end ISO từ BE → tính theo khoảng ngày
             if (start && end) {
               const startDate = moment(start).startOf("day");
               const endDate = moment(end).endOf("day");
@@ -65,25 +67,41 @@ const TeachingSchedulePage: React.FC = () => {
 
               while (current.isSameOrBefore(endDate, "day")) {
                 parsed.push({
-                  title: `${subject} - ${className} - GV: ${teacher}`,
-                  start: current.clone().hour(sh).minute(sm).second(0).toDate(),
-                  end: current.clone().hour(eh).minute(em).second(0).toDate(),
-                  day,
-                  slot,
+                  ...base,
+                  startTime: current
+                    .clone()
+                    .hour(sh)
+                    .minute(sm)
+                    .second(0)
+                    .toISOString(),
+                  endTime: current
+                    .clone()
+                    .hour(eh)
+                    .minute(em)
+                    .second(0)
+                    .toISOString(),
                 });
                 current = current.add(7, "days");
               }
               return;
             }
 
-            // Nếu KHÔNG có ISO: ghép vào tuần đang xem (date)
-            const base = moment(date).startOf("week").day(dow);
+            // Nếu chỉ có slot → lấy tuần hiện tại
+            const baseDate = moment(date).startOf("week").day(dow);
             parsed.push({
-              title: `${subject} - ${className} - GV: ${teacher}`,
-              start: base.clone().hour(sh).minute(sm).second(0).toDate(),
-              end: base.clone().hour(eh).minute(em).second(0).toDate(),
-              day,
-              slot,
+              ...base,
+              startTime: baseDate
+                .clone()
+                .hour(sh)
+                .minute(sm)
+                .second(0)
+                .toISOString(),
+              endTime: baseDate
+                .clone()
+                .hour(eh)
+                .minute(em)
+                .second(0)
+                .toISOString(),
             });
           });
         });
@@ -94,7 +112,14 @@ const TeachingSchedulePage: React.FC = () => {
         setEvents([]);
       }
     })();
-  }, [date]); // đổi tuần/tháng sẽ rebuild theo tuần hiện tại
+  }, [date]);
+
+  // Chuyển đổi ScheduleEvent → event cho react-big-calendar
+  const calendarEvents = events.map((ev) => ({
+    title: `${ev.subjectName} - ${ev.className} - GV: ${ev.teacherName}`,
+    start: new Date(ev.startTime),
+    end: new Date(ev.endTime),
+  }));
 
   return (
     <div className="p-5 bg-slate-50">
@@ -102,9 +127,9 @@ const TeachingSchedulePage: React.FC = () => {
         <h2 className="text-2xl font-bold text-slate-800 m-0">Lịch giảng dạy</h2>
       </div>
       <div className="h-[650px] bg-white rounded-md shadow">
-        <Calendar<CalendarEvent>
+        <Calendar
           localizer={localizer}
-          events={events}
+          events={calendarEvents}
           view={view}
           onView={(v) => setView(v)}
           date={date}
@@ -116,7 +141,8 @@ const TeachingSchedulePage: React.FC = () => {
           max={new Date(1970, 0, 1, 21, 0)}
           style={{ height: "100%" }}
           eventPropGetter={() => ({
-            className: "bg-blue-600 text-white border-0 px-1.5 py-0.5 rounded",
+            className:
+              "bg-blue-600 text-white border-0 px-1.5 py-0.5 rounded",
           })}
         />
       </div>

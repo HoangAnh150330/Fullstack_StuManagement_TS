@@ -1,26 +1,8 @@
-// src/services/enrollment_api.ts
-import axios, { type AxiosInstance } from "axios";
+import axios, { type AxiosInstance , AxiosError } from "axios";
 import { store, type RootState } from "../redux/store";
-
-// ===== Types =====
-export type TimeSlot = { day: string; slot: string };
-
-export type ClassItem = {
-  _id: string;
-  name: string;
-  subject: string;
-  teacher: string;
-  maxStudents: number;
-  timeSlots: TimeSlot[];
-};
-
-export type ScheduleItem = {
-  classId?: string;          // BE mới có thể trả kèm
-  className: string;
-  subject: string;
-  teacher: string;
-  timeSlots: TimeSlot[];
-};
+// Import types đã tách riêng
+import type { ClassData } from "../types/class";
+import type { ScheduleItem } from "../types/schedule";
 
 // ===== Axios instance + interceptor =====
 const BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
@@ -35,7 +17,7 @@ function getToken(): string | undefined {
   } catch {
     /* ignore */
   }
-  // 2) fallback localStorage (phòng lúc user refresh mà Redux chưa kịp khởi tạo)
+  // 2) fallback localStorage
   try {
     const raw = localStorage.getItem("auth_user");
     if (!raw) return;
@@ -53,7 +35,7 @@ api.interceptors.request.use((cfg) => {
   return cfg;
 });
 
-// Optional: cho phép set thủ công (nếu bạn muốn set ngay sau login)
+// Optional: cho phép set thủ công (nếu muốn set ngay sau login)
 export function setAuthToken(token?: string | null) {
   if (token) api.defaults.headers.common.Authorization = `Bearer ${token}`;
   else delete api.defaults.headers.common.Authorization;
@@ -61,16 +43,16 @@ export function setAuthToken(token?: string | null) {
 
 // ===== APIs =====
 
-// Lấy danh sách lớp mở (khớp route hiện có của bạn)
-export async function getOpenClassesAPI(): Promise<ClassItem[]> {
-  const { data } = await api.get<ClassItem[]>("/api/classes/getall-class");
+// Lấy danh sách lớp mở
+export async function getOpenClassesAPI(): Promise<ClassData[]> {
+  const { data } = await api.get<ClassData[]>("/api/classes/getall-class");
   return data;
 }
 
-// Lấy thời khóa biểu của sinh viên (cần Authorization header)
+// Lấy thời khóa biểu của sinh viên
 export async function getMyScheduleAPI(studentId: string): Promise<ScheduleItem[]> {
-  const { data } = await api.get(`/api/enrollments/student/${studentId}`);
-  return data as ScheduleItem[];
+  const { data } = await api.get<ScheduleItem[]>(`/api/enrollments/student/${studentId}`);
+  return data;
 }
 
 // Đăng ký lớp: ưu tiên /:classId; nếu 404 thì fallback body { classId }
@@ -78,25 +60,18 @@ export async function enrollClassAPI(classId: string) {
   try {
     const { data } = await api.post(`/api/enrollments/${classId}`);
     return data;
-  } catch (err: any) {
-    if (err?.response?.status === 404) {
+  } catch (err: unknown) {
+    // Thu hẹp về AxiosError
+    const axiosErr = err as AxiosError;
+
+    if (axiosErr.response?.status === 404) {
       const { data } = await api.post(`/api/enrollments`, { classId });
       return data;
     }
     throw err;
   }
 }
-
-// Hủy đăng ký: ưu tiên /:classId; nếu 404 thì fallback body { classId }
 export async function cancelEnrollAPI(classId: string) {
-  try {
-    const { data } = await api.delete(`/api/enrollments/${classId}`);
-    return data;
-  } catch (err: any) {
-    if (err?.response?.status === 404) {
-      const { data } = await api.delete(`/api/enrollments`, { data: { classId } });
-      return data;
-    }
-    throw err;
-  }
+  const { data } = await api.delete(`/api/enrollments/${classId}`);
+  return data;
 }

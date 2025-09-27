@@ -7,8 +7,16 @@ import { store } from "../redux/store";
 import type { RootState } from "../redux/store";
 import { absolutize } from "../utils/url";
 
+// ==== Types import từ /types ====
+import type { GradeType, GradeRecord, AddGradeItem } from "../types/grade";
+import type { ClassItem } from "../types/class";
+import type { StudentLite } from "../types/common";
+import type { AttendanceRecord } from "../types/attendance";
+import type { MaterialItem } from "../types/material";
+import type { Announcement } from "../types/announcement";
+import type { TeacherLite } from "../types/common";
+
 /* ========= axios instance ========= */
-// Chuẩn hoá baseURL: nếu env đã có /api thì không thêm nữa
 const BASE = (import.meta.env.VITE_API_URL || "http://localhost:3000/api").replace(/\/$/, "");
 const API_BASE = BASE.endsWith("/api") ? BASE : `${BASE}/api`;
 
@@ -25,49 +33,7 @@ teacher_api.interceptors.request.use((cfg: InternalAxiosRequestConfig) => {
   return cfg;
 });
 
-/* ========= Types ========= */
-export type GradeType = "quiz" | "midterm" | "final";
-export type GradeRecord = { studentId: string; score: number; note?: string };
-export type TimeSlot = { day: string; slot: string };
-
-export type ClassItem = {
-  _id?: string; // có nơi trả _id
-  id?: string; // có nơi trả id
-  name?: string;
-  subject?: string;
-  timeSlots?: TimeSlot[];
-  maxStudents?: number;
-  room?: string;
-  teacherId?: string;
-};
-
-export type ClassItemLite = Required<Pick<ClassItem, "_id" | "name" | "subject">> &
-  Pick<ClassItem, "timeSlots" | "maxStudents" | "room">;
-
-export type StudentLite = { _id: string; name: string; email: string };
-
-export type AttendanceRecord = {
-  studentId: string;
-  status: "present" | "absent" | "late";
-  note?: string;
-};
-
-export type AddGradeItem = { studentId: string; score: number; note?: string };
-
-export type MaterialItem = {
-  _id: string;
-  name?: string;
-  filename?: string;
-  url?: string;
-  size?: number | string;
-  createdAt?: string;
-};
-
-export type AnnouncementItem = { _id: string; title: string; createdAt: string };
-
-export type TeacherLite = { _id: string; name: string; email?: string };
-
-/* ========= Helpers (không dùng any) ========= */
+/* ========= Helpers ========= */
 function extractArray<T>(payload: unknown): T[] {
   if (Array.isArray(payload)) return payload as T[];
   const d = (payload as { data?: unknown })?.data;
@@ -117,13 +83,10 @@ export async function teacherUpdateAttendance(
 }
 
 export async function teacherGetAttendanceByDate(classId: string, isoDate: string) {
-  const r = await teacher_api.get<
-    { success?: boolean; data?: Array<{ studentId: string; status: "present" | "absent" | "late"; note?: string }> } | unknown
-  >("/teacher/attendance", { params: { classId, date: isoDate } });
-
+  const r = await teacher_api.get<unknown>("/teacher/attendance", { params: { classId, date: isoDate } });
   const d = (r.data as { data?: unknown })?.data;
   return Array.isArray(d)
-    ? (d as Array<{ studentId: string; status: "present" | "absent" | "late"; note?: string }>)
+    ? (d as AttendanceRecord[])
     : [];
 }
 
@@ -170,14 +133,8 @@ export async function teacherDeleteMaterial(materialId: string) {
   return extractObject<{ message?: string }>(r.data);
 }
 
-// Upload file raw (multipart) → trả { url, size, name }
-type UploadPayload = {
-  url?: string;
-  path?: string;
-  location?: string;
-  size?: number;
-  name?: string;
-};
+// Upload file raw (multipart)
+type UploadPayload = { url?: string; path?: string; location?: string; size?: number; name?: string };
 type UploadResponseShape = UploadPayload | { data?: UploadPayload };
 
 export async function teacherUploadRawFile(file: File) {
@@ -193,11 +150,7 @@ export async function teacherUploadRawFile(file: File) {
     (raw && typeof raw === "object" && "data" in raw && raw.data) ? (raw.data as UploadPayload) : (raw as UploadPayload);
 
   const url = absolutize(data.url || data.path || data.location || "");
-  return {
-    url,
-    size: data.size,
-    name: data.name,
-  };
+  return { url, size: data.size, name: data.name };
 }
 
 /* ===== Thông báo & lịch dạy ===== */
@@ -208,16 +161,13 @@ export async function teacherSendAnnouncement(payload: { classId: string; title:
 
 export async function teacherGetAnnouncements(classId: string) {
   const r = await teacher_api.get<unknown>(`/teacher/announcements/${classId}`);
-  return extractArray<AnnouncementItem>(r.data);
+  return extractArray<Announcement>(r.data);
 }
 
-/**
- * Lấy lịch của GV: chỉ dùng endpoint cá nhân
- * → /teacher/schedule/me  (trả đúng lịch của GV hiện tại)
- */
+// Lịch dạy của GV hiện tại
 export async function teacherGetMySchedule() {
   const r = await teacher_api.get<unknown>("/teacher/schedule/me");
-  return extractArray<ClassItem>(r.data); // không fallback sang endpoint nào khác
+  return extractArray<ClassItem>(r.data);
 }
 
 export async function teacherUpdateSchedule(classId: string, patch: { schedule?: string }) {

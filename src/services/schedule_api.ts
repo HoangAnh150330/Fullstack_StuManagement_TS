@@ -1,4 +1,5 @@
 import axios from "axios";
+import type { ScheduleItemDTO } from "../types/schedule";
 
 const BASE = (import.meta.env.VITE_API_URL || "http://localhost:3000").replace(/\/$/, "");
 const API_BASE = BASE.endsWith("/api") ? BASE : `${BASE}/api/schedule`;
@@ -10,25 +11,6 @@ function ensureArray<T>(payload: UnknownPayload): T[] {
   if (Array.isArray(payload)) return payload as T[];
   const d = (payload as { data?: unknown })?.data;
   return Array.isArray(d) ? (d as T[]) : [];
-}
-
-export interface TimeSlotDTO {
-  day: string;
-  slot: string;     // "HH:mm-HH:mm"
-  start?: string;   // ISO optional
-  end?: string;     // ISO optional
-}
-
-export interface ScheduleItemDTO {
-  className?: string;
-  name?: string;
-  class?: string;
-  subject?: string;
-  subjectName?: string;
-  teacher?: string;
-  teacherName?: string;
-  teacherId?: { _id?: string; name?: string; email?: string };
-  timeSlots: TimeSlotDTO[];
 }
 
 export async function getSchedulesAPI(): Promise<ScheduleItemDTO[]> {

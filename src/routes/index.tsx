@@ -75,8 +75,16 @@ export const router = createBrowserRouter([
     <RequireRole allowed={["student"]} redirectTo="/403">
       <EnrolledClassesPage />
     </RequireRole>
-  ),
-},
+    ),
+  },
+  {
+    path: "/student/announcements",
+    element: (
+      <RequireRole allowed={["student"]} redirectTo="/403">
+        <AnnouncementsPage />
+      </RequireRole>
+    ),
+  },
   //Teacher
   {
   path: "/teacher",

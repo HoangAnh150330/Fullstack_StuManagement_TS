@@ -1,27 +1,12 @@
-import api from "./api"; // axios instance có interceptor
+import api from "./api"; 
+import type {
+  LoginPayload,
+  RegisterPayload,
+  VerifyOTPPayload,
+  AuthResponse,
+  User,
+} from "../types/auth";
 import type { ChangePasswordBody } from "../types/student";
-
-type UserRole = "admin" | "teacher" | "student";
-export type User = { _id: string; email: string; role: UserRole };
-
-export type LoginPayLoad = { email: string; password: string };
-export type RegisterPayLoad = { email: string; password: string };
-export type VerifyOTPPayload = { email: string; otp: string };
-
-// Định nghĩa response từ BE
-interface AuthResponse {
-  success?: boolean;
-  data?: {
-    token?: string;
-    accessToken?: string;
-    user?: User;
-    message?: string;
-  };
-  token?: string;
-  accessToken?: string;
-  user?: User;
-  message?: string;
-}
 
 // Chuẩn hoá baseURL
 const BASE = (import.meta.env.VITE_API_URL || "http://localhost:3000/api").replace(/\/$/, "");
@@ -35,7 +20,7 @@ function normalizeAuth(d: AuthResponse) {
   return { token, user, message };
 }
 
-export const registerAPI = async (payload: RegisterPayLoad) => {
+export const registerAPI = async (payload: RegisterPayload) => {
   const res = await api.post<{ message?: string }>(`${AUTH}/register`, payload);
   return res.data;
 };
@@ -45,11 +30,11 @@ export const verifyOTPAPI = async (payload: VerifyOTPPayload) => {
   return res.data;
 };
 
-export const loginAPI = async (payload: LoginPayLoad) => {
+export const loginAPI = async (payload: LoginPayload) => {
   const res = await api.post<AuthResponse>(`${AUTH}/login`, payload);
   const { token, user, message } = normalizeAuth(res.data);
   if (!token || !user) throw new Error("INVALID_RESPONSE");
-  return { token, user, message };
+  return { token, user: user as User, message };
 };
 
 export const resendOTPAPI = async (payload: { email: string }) => {

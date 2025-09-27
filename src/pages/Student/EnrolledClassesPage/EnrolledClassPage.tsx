@@ -8,43 +8,41 @@ import type { RootState } from "../../../redux/store";
 import type { AxiosError } from "axios";
 import { useNavigate } from "react-router-dom";
 
-type TimeSlot = { day: string; slot: string; start?: string; end?: string };
+import type { ScheduleItemDTO, ScheduleItem } from "../../../types/schedule";
 
-// Dữ liệu từ API (có thể thiếu field)
-type ScheduleItemFromAPI = {
-  classId?: string;
-  className?: string;
-  subject?: string;
-  teacher?: string;
-  timeSlots?: TimeSlot[];
-};
-
-// Dữ liệu chuẩn cho UI
-type Item = {
-  classId: string;
-  className: string;
-  subject: string;
-  teacher: string;
-  timeSlots: TimeSlot[];
-};
-
-// Row mở rộng (phục vụ hiển thị)
-type Row = Item & {
+// Row mở rộng (cho UI)
+type Row = ScheduleItem & {
   fs: moment.Moment | null;
   cutoff: moment.Moment | null;
   canCancel: boolean;
 };
 
+// Map dữ liệu từ API → FE chuẩn
+const mapDTOtoItem = (dto: ScheduleItemDTO, index: number): ScheduleItem => ({
+  classId: dto._id || dto.classId || dto.className || `temp-${index}`, // Ưu tiên _id, sau đó classId, className
+  className: dto.className ?? "",
+  subject: dto.subject ?? "",
+  teacher: dto.teacher ?? "",
+  timeSlots: dto.timeSlots ?? [],
+});
+
 const dayMap: Record<string, number> = {
-  "Chủ nhật": 0, "Thứ 2": 1, "Thứ 3": 2, "Thứ 4": 3, "Thứ 5": 4, "Thứ 6": 5, "Thứ 7": 6,
+  "Chủ nhật": 0,
+  "Thứ 2": 1,
+  "Thứ 3": 2,
+  "Thứ 4": 3,
+  "Thứ 5": 4,
+  "Thứ 6": 5,
+  "Thứ 7": 6,
 };
+
 const parseSlot = (slot: string) => {
   const [a] = slot.split("-");
   const [h, m] = a.split(":").map(Number);
   return { h, m };
 };
 
-function firstSession(ts: TimeSlot[]): moment.Moment | null {
+function firstSession(ts: ScheduleItemDTO["timeSlots"] = []): moment.Moment | null {
   const candidates: moment.Moment[] = [];
   ts.forEach((t) => {
     if (!t.day || !t.slot) return;
@@ -70,32 +68,41 @@ export default function EnrolledClassesPage() {
   const user = useSelector((s: RootState) => s.auth.user);
   const studentId = user?._id;
 
-  const [rows, setRows] = useState<Item[]>([]);
+  const [rows, setRows] = useState<ScheduleItem[]>([]);
   const [loading, setLoading] = useState(false);
 
   const cutoffHours = 24;
 
-  const fetchData = async () => { // thêm param cho đúng logic
-    if (!studentId) return;
+  const fetchData = async () => {
+    if (!studentId) {
+      console.log("studentId is undefined, skipping fetch");
+      return;
+    }
     setLoading(true);
     try {
-      const raw: ScheduleItemFromAPI[] = await getMyScheduleAPI(studentId);
-      const normalized: Item[] = (raw ?? [])
-        .filter((x) => !!x.classId)
-        .map((x) => ({
-          classId: x.classId!,
-          className: x.className ?? "",
-          subject: x.subject ?? "",
-          teacher: x.teacher ?? "",
-          timeSlots: x.timeSlots ?? [],
-        }));
+      console.log("Fetching schedule for studentId:", studentId);
+      const response = await getMyScheduleAPI(studentId);
+      console.log("Raw response from API:", response);
+      const raw: ScheduleItemDTO[] = Array.isArray(response.data) ? response.data : [];
+      console.log("Raw data from API:", raw);
+      const normalized: ScheduleItem[] = raw
+        .filter((x) => !!x.className || !!x.subject)
+        .map((dto, index) => mapDTOtoItem(dto, index));
+      console.log("Normalized data:", normalized);
       setRows(normalized);
+    } catch (error) {
+      console.error("Error fetching schedule:", error);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    console.log("Redux user state:", user);
+    if (!studentId) {
+      console.log("No studentId, user data:", user);
+      return;
+    }
     fetchData();
   }, [studentId]);
 
@@ -111,23 +118,26 @@ export default function EnrolledClassesPage() {
   );
 
   const handleCancel = async (classId: string) => {
+    console.log("Attempting to cancel classId:", classId);
+    if (!classId || classId.startsWith("temp-")) {
+      message.error("ID lớp học không hợp lệ");
+      return;
+    }
     try {
-      await cancelEnrollAPI(classId);
+      const response = await cancelEnrollAPI(classId);
+      console.log("Cancel response:", response);
       message.success("Đã hủy đăng ký");
       void fetchData();
     } catch (err) {
+      console.error("Cancel error:", err);
       const axiosErr = err as AxiosError<{ message?: string }>;
-      const msg =
-        axiosErr.response?.data?.message ||
-        (axiosErr as Error).message ||
-        "Không hủy được";
+      const msg = axiosErr.response?.data?.message || "Không hủy được";
       message.error(msg);
     }
   };
 
   return (
     <div className="p-5 bg-slate-50 min-h-screen">
-      {/* Header */}
       <div className="mx-auto max-w-6xl">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -145,10 +155,9 @@ export default function EnrolledClassesPage() {
           </Button>
         </div>
 
-        {/* Card container */}
         <div className="rounded-2xl bg-white shadow-sm border border-slate-200 p-4">
           <Table<Row>
-            rowKey="classId"
+            rowKey={(record) => record.classId || `temp-${Math.random()}`} // Đảm bảo rowKey duy nhất
             loading={loading}
             dataSource={data}
             pagination={{ pageSize: 8, hideOnSinglePage: true }}
@@ -193,7 +202,7 @@ export default function EnrolledClassesPage() {
                 fixed: "right",
                 width: 120,
                 render: (_: unknown, r: Row) => {
-                  if (!r.canCancel) return null; // ❌ Ẩn nút khi quá hạn
+                  if (!r.canCancel) return null;
                   return (
                     <Popconfirm
                       title="Hủy đăng ký?"
